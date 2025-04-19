@@ -1,0 +1,78 @@
+1. Application Name: Lang2Lang
+2. Application Objective:
+To help users learn the essential vocabulary and phrases for day-to-day situations in a foreign language.
+Focus on high-frequency words and sentences (the "80%" that are most commonly used).
+Support both new language learners and those who want to refresh their basic language skills.
+Teach practical communication, not exhaustive language knowledge.
+3. Core Features:
+Sentence-Based Learning: Lessons revolve around full sentences, not isolated words.
+Interactive Word Exploration:
+Users can click on any word in a sentence to see its definition and usage explanation.
+Contextual information, including grammatical notes (e.g., noun classes, verb tenses), is provided.
+A chat box allows users to ask further questions about the word.
+Interactive Fill-in-the-Blanks:
+Each sentence has two missing words.
+Users can:
+Type their answer directly.
+Click a "Hint" button for a brief clue.
+Click an "Options" button to select from a list of 8 possible words.
+Immediate feedback:
+Correct answer: Displayed in blue.
+Incorrect answer: User's answer displayed in red with a strikethrough, correct answer in green.
+Lesson Structure: Lessons are based on common scenarios:
+Examples, but not limited to:
+Grocery shopping (buying 10 items)
+Asking for and understanding complex directions
+Opening a bank account and discussing options
+Each lesson includes:
+Approximately 14 exchanges per person (1-2 sentences each).
+Questions and answers.
+Common verbs in past, present, and future tenses.
+Common adjectives.
+Common nouns (people, places, things, ideas).
+Common expressions.
+Common identifiers (Mr., Mrs., Sir, Dr., Senator, etc.).
+Replayability:
+"Do it again": Repeats the same scenario with different missing words.
+"Do something similar": Presents a new scenario on the same topic with different text.
+"Start again": Returns to the beginning of the lesson/topic selection.
+Language Support:
+Initial languages: English to Spanish, English to Swahili, and English to Italian.
+System should be designed to be extensible to any language pair.
+Topic Selection:
+Users can type in a topic for the story, or select from a list of options.
+4. Vocabulary Focus:
+The application should cover common words and phrases, including but not limited to:
+Greetings and basic phrases: Hello, Goodbye
+Basic responses: Yes/No
+Requests for assistance: Help, Stop
+Politeness: Thank you/please/excuse me
+Time: Good morning/afternoon/evening/day
+Inquiries: How are you?
+States of being: I'm good/sick/tired
+Possession and existence: Do you have ____
+Location: Where is the ____
+Origin: Where are you from? I am from ____
+Identification: My name is ____
+Direction: Where are we going?
+Desire: I would like ____
+Preference: I like ____
+Commerce: Can I pay in dollars?
+Numbers: 0-100
+Colors
+Spatial relations: Right/Center/Left/Ahead/Behind/Up/Down
+Family: Wife/child/daughter
+Proximity: here/there
+Demonstratives: this/that/these/those
+Documents: passport
+Basic needs: food, water
+Technology: phone
+Finance: money
+Clothing: different articles of clothing, laundry
+Urban environment: street
+Accommodation: room
+5. Technical Considerations (Implicit):
+The application does not need to store any data. The only memory needed should already be in the context of the existing user (e.g. the current lesson if the user wants to repeat it)
+A user interface (UI) with interactive elements (buttons, input fields, clickable words, chat section to learn more about specific words) is needed.
+The design should be modular and extensible to support new languages and lessons.
+The basic version of the application does not need login and does not need to be tied to specific users
