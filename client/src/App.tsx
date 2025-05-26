@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -10,13 +10,24 @@ import AppHeader from "@/components/AppHeader";
 import { LanguageContext } from "@/lib/languages";
 
 function Router() {
-  return (
-    <Switch>
-      <Route path="/" component={Home} />
-      <Route path="/lesson/:id" component={Lesson} />
-      <Route component={NotFound} />
-    </Switch>
-  );
+  const [location] = useLocation();
+  console.log("Wouter's current path 250538:", location);
+
+
+  return (
+    <Switch>
+      {/* This will match the root path if you just go to /lang2lang-dev_frontend/ */}
+      <Route path="/lang2lang-dev_frontend/" component={Home} /> 
+      {/* This will match when index.html is explicitly in the URL */}
+      <Route path="/lang2lang-dev_frontend/index.html" component={Home} /> 
+
+      {/* Original root route - might still be useful for internal navigation, but will be overshadowed by the more specific ones */}
+      <Route path="/" component={Home} /> 
+
+      <Route path="/lesson/:id" component={Lesson} />
+      <Route component={NotFound} />
+    </Switch>
+  );
 }
 
 function App() {

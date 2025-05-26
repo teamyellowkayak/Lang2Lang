@@ -1,13 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "./queryClient";
 import { Vocabulary, WordDetail, ChatMessage } from "@shared/schema";
+import { API_BASE_URL } from '../config';
 
 export const useWordDetails = (word: string, targetLanguage: string) => {
   return useQuery({
-    queryKey: ['/api/vocabulary', word, targetLanguage],
+    queryKey: ['${API_BASE_URL}/api/vocabulary', word, targetLanguage],
     queryFn: async ({ queryKey }) => {
       const [_, word, lang] = queryKey;
-      const response = await fetch(`/api/vocabulary?word=${word}&targetLanguage=${lang}`);
+      const response = await fetch(`${API_BASE_URL}/api/vocabulary?word=${word}&targetLanguage=${lang}`);
       if (!response.ok) {
         // If not found, return a basic structure
         if (response.status === 404) {
@@ -31,7 +32,7 @@ export const useWordDetails = (word: string, targetLanguage: string) => {
 export const useSendChatMessage = () => {
   const sendMessage = async (question: string, word: string, targetLanguage: string): Promise<ChatMessage> => {
     try {
-      const response = await apiRequest("POST", "/api/chat", {
+      const response = await apiRequest("POST", "${API_BASE_URL}/api/chat", {
         question,
         word,
         targetLanguage

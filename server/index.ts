@@ -1,8 +1,22 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
+import cors from 'cors'; 
 
 const app = express();
+
+// Configure CORS options
+const corsOptions = {
+  // This must be the exact origin of your frontend, which is hosted on GCS.
+  // It should be 'https://storage.googleapis.com' for your deployed app.
+  origin: 'https://storage.googleapis.com',
+  methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE'], // Allowed methods
+  credentials: true, // Allow sending cookies/auth headers (useful if you add auth later)
+  optionsSuccessStatus: 204 // For preflight requests
+};
+
+// Use the cors middleware
+app.use(cors(corsOptions));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
@@ -29,7 +43,7 @@ app.use((req, res, next) => {
         logLine = logLine.slice(0, 79) + "…";
       }
 
-      log(logLine);
+      console.log(logLine);
     }
   });
 
@@ -47,24 +61,17 @@ app.use((req, res, next) => {
     throw err;
   });
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
-  }
 
-  // ALWAYS serve the app on port 5000
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = 5000;
+// Cloud Run will provide a PORT environment variable.
+// For local development, we can fall back to 5000.
+  const port = process.env.PORT || 5000; // THIS IS THE CRUCIAL CHANGE
+
   server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
+    port: Number(port), // Ensure it's a number, as env vars are strings
+    host: "0.0.0.0", // Listen on all network interfaces
+    reusePort: true, // This might not be strictly necessary for Cloud Run, but harmless
   }, () => {
-    log(`serving on port ${port}`);
-  });
+  console.log(`serving on port ${port}`);
+});
+
 })();

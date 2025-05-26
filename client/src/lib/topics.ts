@@ -1,5 +1,6 @@
 import { Topic } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
+import { API_BASE_URL } from '../config'; 
 
 export interface TopicCategory {
   name: string;
@@ -10,7 +11,7 @@ export const useTopics = (targetLanguage: string) => {
   return useQuery({
     queryKey: ['/api/topics', targetLanguage],
     queryFn: async ({ queryKey }) => {
-      const response = await fetch(`/api/topics?targetLanguage=${queryKey[1]}`);
+      const response = await fetch(`${API_BASE_URL}/api/topics?targetLanguage=${queryKey[1]}`);
       if (!response.ok) {
         throw new Error('Failed to fetch topics');
       }
@@ -23,7 +24,7 @@ export const useTopic = (id: number) => {
   return useQuery({
     queryKey: [`/api/topics/${id}`],
     queryFn: async ({ queryKey }) => {
-      const response = await fetch(queryKey[0]);
+      const response = await fetch(`${API_BASE_URL}${queryKey[0]}`); 
       if (!response.ok) {
         throw new Error('Failed to fetch topic');
       }

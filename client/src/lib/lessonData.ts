@@ -1,11 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { Lesson, Exchange } from "@shared/schema";
+import { API_BASE_URL } from '../config';
 
 export const useLessons = (topicId: number) => {
   return useQuery({
     queryKey: ['/api/lessons', topicId],
     queryFn: async ({ queryKey }) => {
-      const response = await fetch(`/api/lessons?topicId=${queryKey[1]}`);
+      const response = await fetch(`${API_BASE_URL}/api/lessons?topicId=${queryKey[1]}`);
       if (!response.ok) {
         throw new Error('Failed to fetch lessons');
       }
@@ -17,7 +18,7 @@ export const useLessons = (topicId: number) => {
 
 export const useLesson = (id: number) => {
   return useQuery({
-    queryKey: [`/api/lessons/${id}`],
+    queryKey: [`${API_BASE_URL}/api/lessons/${id}`],
     queryFn: async ({ queryKey }) => {
       const response = await fetch(queryKey[0]);
       if (!response.ok) {
