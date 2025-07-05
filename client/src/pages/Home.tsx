@@ -1,7 +1,7 @@
 // Home.tsx
 
-import { useState } from 'react';
 import { useLanguage } from '@/lib/languages';
+import { useState } from 'react';
 import { useTopics, getCategorizedTopics } from '@/lib/topics';
 import TopicSelection from '@/components/TopicSelection';
 import TopicPreview from '@/components/TopicPreview';
@@ -77,6 +77,9 @@ const Home = () => {
   // At this point, languages are loaded (allLanguages is available)
   // and currentLanguageCode is set.
 
+    console.log('home.tsx 1: about to run setCurrentLanguageCode')
+
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Optional: Add a language selector here if you want users to change the language */}
@@ -87,7 +90,7 @@ const Home = () => {
         </label>
         <select
           id="language-select"
-          value={currentLanguageCode}
+          value={currentLanguage?.code || ''} // <--- CORRECTED LINE HERE
           onChange={(e) => setCurrentLanguageCode(e.target.value)}
           className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
         >
@@ -106,9 +109,9 @@ const Home = () => {
           onTopicSelect={handleTopicSelect}
           selectedTopic={selectedTopic}
           // Pass the combined loading state if useTopics depends on currentLanguageCode
-          isLoading={isTopicsLoading || !currentLanguageCode} // Topics are loading OR currentLanguageCode isn't set yet
+          isLoading={isTopicsLoading || !currentLanguage?.code} 
           // You might need to pass currentLanguageCode to TopicSelection if it needs to display it
-          // currentLanguageCode={currentLanguageCode}
+          // currentLanguageCode={currentLanguage?.code}
         />
 
         <TopicPreview

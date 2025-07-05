@@ -14,7 +14,7 @@ interface LanguageProviderProps {
 
 export const LanguageProvider = ({ children }: LanguageProviderProps) => {
   const { data: allLanguages, isLoading, isError, error } = _useFetchAllLanguages();
-  const [currentLanguageCode, setCurrentLanguageCodeState] = useState<string>("en2es"); // State for the code
+  const [currentLanguageCode, setCurrentLanguageCodeState] = useState<string>("es"); // State for the code
 
   // Effect to set an initial current language code once data is loaded
   useEffect(() => {
@@ -22,6 +22,9 @@ export const LanguageProvider = ({ children }: LanguageProviderProps) => {
       // Ensure "es" exists, otherwise pick the first one from the fetched list
       const defaultExists = allLanguages.some(lang => lang.code === "es");
       if (!defaultExists) {
+
+        console.log('languageProvider.tsx 2: about to run setCurrentLanguageCodeState')
+
         setCurrentLanguageCodeState(allLanguages[0].code);
       }
     }
@@ -49,6 +52,9 @@ export const LanguageProvider = ({ children }: LanguageProviderProps) => {
 
   // Override setCurrentLanguageCode to ensure it uses the local state
   const setCurrentLanguageCode = React.useCallback((code: string) => {
+
+    console.log('languageProvider.tsx 3: about to run setCurrentLanguageCodeState')
+
     setCurrentLanguageCodeState(code);
   }, []);
 

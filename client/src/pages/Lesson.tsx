@@ -1,3 +1,5 @@
+// Lesson.tsx
+
 import { useState, useEffect } from 'react';
 import { useRoute, useLocation } from 'wouter';
 import { useLesson } from '@/lib/lessonData';

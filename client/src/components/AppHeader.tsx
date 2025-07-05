@@ -30,6 +30,7 @@ const AppHeader = () => {
   const handleLanguageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     // Call the setCurrentLanguageCode function from the context
     // This function expects a string (the language code)
+    console.log('AppHeader: about to run setCurrentLanguageCode')
     setCurrentLanguageCode(e.target.value);
   };
 
