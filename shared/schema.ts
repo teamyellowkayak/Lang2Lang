@@ -1,146 +1,143 @@
-import { pgTable, text, serial, integer, json, array } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
-import { z } from "zod";
+// Lang2Lang/shared/schema.ts
+// REMOVED: import { pgTable, text, serial, integer, json, array } from "drizzle-orm/pg-core";
+// REMOVED: import { createInsertSchema } from "drizzle-zod"; // Not needed if we're not inferring from Drizzle tables
 
-// Main user schema for authentication (not used in initial version)
-export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
+import { z } from "zod"; // Keep Zod for defining schemas
+
+// --- User Schema ---
+// We're defining the schema directly with Zod, reflecting Firestore's string IDs
+export const userSchema = z.object({
+  id: z.string(), // Firestore uses string IDs
+  username: z.string(),
+  password: z.string(),
 });
 
-export const insertUserSchema = createInsertSchema(users).pick({
+export const insertUserSchema = userSchema.pick({
   username: true,
   password: true,
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
+export type User = z.infer<typeof userSchema>; // Directly infer from Zod schema
 
-// Language schema
-export const languages = pgTable("languages", {
-  id: serial("id").primaryKey(),
-  code: text("code").notNull().unique(),
-  name: text("name").notNull(),
-  nativeName: text("native_name").notNull(),
-  isSourceLanguage: integer("is_source_language").notNull().default(0),
+// --- Language Schema ---
+export const languageSchema = z.object({
+  id: z.string(), // Firestore uses string IDs
+  code: z.string(),
+  name: z.string(),
+  nativeName: z.string(),
+  isSourceLanguage: z.number().int().default(0), // Firestore supports numbers. Default can be handled in logic.
 });
 
-export const insertLanguageSchema = createInsertSchema(languages).omit({
+export const insertLanguageSchema = languageSchema.omit({
   id: true,
 });
 
 export type InsertLanguage = z.infer<typeof insertLanguageSchema>;
-export type Language = typeof languages.$inferSelect;
+export type Language = z.infer<typeof languageSchema>;
 
-// Topic schema
-export const topics = pgTable("topics", {
-  id: serial("id").primaryKey(),
-  title: text("title").notNull(),
-  description: text("description").notNull(),
-  category: text("category").notNull(),
-  difficulty: text("difficulty").notNull(),
-  targetLanguage: text("target_language").notNull(),
-  sourceLanguage: text("source_language").notNull().default("en"),
-  tags: text("tags").array(),
-  imagePath: text("image_path"),
+// --- Topic Schema ---
+export const topicSchema = z.object({
+  id: z.string(), // Firestore uses string IDs
+  title: z.string(),
+  description: z.string(),
+  category: z.string(),
+  difficulty: z.string(),
+  targetLanguage: z.string(),
+  sourceLanguage: z.string().default("en"),
+  tags: z.array(z.string()).optional(), // Firestore arrays work naturally
+  imagePath: z.string().optional().nullable(), // Image path might be null or optional
 });
 
-export const insertTopicSchema = createInsertSchema(topics).omit({
+export const insertTopicSchema = topicSchema.omit({
   id: true,
 });
 
 export type InsertTopic = z.infer<typeof insertTopicSchema>;
-export type Topic = typeof topics.$inferSelect;
+export type Topic = z.infer<typeof topicSchema>;
 
-// Lesson schema
-export const lessons = pgTable("lessons", {
-  id: serial("id").primaryKey(),
-  topicId: integer("topic_id").notNull(),
-  title: text("title").notNull(),
-  context: text("context").notNull(),
-  exchanges: json("exchanges").notNull(),
+// --- Lesson Schema ---
+export type LessonStatus = 'available' | 'in progress' | 'done'; 
+
+export const lessonSchema = z.object({
+  id: z.string(), // Firestore uses string IDs
+  topicId: z.string(), // Foreign key to Topic ID, now a string
+  title: z.string(),
+  context: z.string(),
+  status: LessonStatus,
+  exchanges: z.array(z.object({ // Firestore supports nested objects and arrays directly
+    id: z.string().optional(), // Firestore ID or custom ID for exchanges within a lesson
+    speaker: z.enum(['user', 'other']),
+    speakerName: z.string(),
+    nativeText: z.string(),
+    translatedText: z.string(),
+    blanks: z.array(z.object({
+      index: z.number().int(),
+      correctAnswer: z.string(),
+    })).optional(),
+  })),
 });
 
-export const insertLessonSchema = createInsertSchema(lessons).omit({
+export const insertLessonSchema = lessonSchema.omit({
   id: true,
 });
 
 export type InsertLesson = z.infer<typeof insertLessonSchema>;
-export type Lesson = typeof lessons.$inferSelect;
+export type Lesson = z.infer<typeof lessonSchema>;
 
-// Vocabulary schema
-export const vocabulary = pgTable("vocabulary", {
-  id: serial("id").primaryKey(),
-  word: text("word").notNull(),
-  translation: text("translation").notNull(),
-  partOfSpeech: text("part_of_speech").notNull(),
-  gender: text("gender"),
-  definition: text("definition").notNull(),
-  examples: text("examples").array(),
-  notes: text("notes"),
-  targetLanguage: text("target_language").notNull(),
-  sourceLanguage: text("source_language").notNull().default("en"),
-  relatedWords: text("related_words").array(),
+
+// --- Vocabulary Schema ---
+export const vocabularySchema = z.object({
+  id: z.string(), // Firestore uses string IDs
+  word: z.string(),
+  translation: z.string(),
+  partOfSpeech: z.string(),
+  gender: z.string().optional().nullable(),
+  definition: z.string(),
+  examples: z.array(z.string()).optional(), // Firestore arrays work naturally
+  notes: z.string().optional().nullable(),
+  targetLanguage: z.string(),
+  sourceLanguage: z.string().default("en"),
+  relatedWords: z.array(z.string()).optional(), // Firestore arrays work naturally
 });
 
-export const insertVocabularySchema = createInsertSchema(vocabulary).omit({
+export const insertVocabularySchema = vocabularySchema.omit({
   id: true,
 });
 
 export type InsertVocabulary = z.infer<typeof insertVocabularySchema>;
-export type Vocabulary = typeof vocabulary.$inferSelect;
+export type Vocabulary = z.infer<typeof vocabularySchema>;
 
-// Progress schema (not used in initial version)
-export const progress = pgTable("progress", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull(),
-  lessonId: integer("lesson_id").notNull(),
-  completed: integer("completed").notNull().default(0),
-  score: integer("score"),
-  lastAttempted: text("last_attempted"),
+// --- Progress Schema ---
+export const progressSchema = z.object({
+  id: z.string(), // Firestore uses string IDs
+  userId: z.string(), // Foreign key to User ID, now a string
+  lessonId: z.string(), // Foreign key to Lesson ID, now a string
+  completed: z.number().int().default(0),
+  score: z.number().int().optional().nullable(),
+  lastAttempted: z.string().optional().nullable(), // Assuming this is a date string
 });
 
-export const insertProgressSchema = createInsertSchema(progress).omit({
+export const insertProgressSchema = progressSchema.omit({
   id: true,
 });
 
 export type InsertProgress = z.infer<typeof insertProgressSchema>;
-export type Progress = typeof progress.$inferSelect;
+export type Progress = z.infer<typeof progressSchema>;
 
-// Types for client-side use
-export type Exchange = {
-  id: string;
-  speaker: 'user' | 'other';
-  speakerName: string;
-  nativeText: string;
-  translatedText: string;
-  blanks?: Array<{
-    index: number;
-    correctAnswer: string;
-  }>
-};
-
-export type WordDetail = {
-  word: string;
-  translation: string;
-  partOfSpeech: string;
-  gender?: string;
-  definition: string;
-  examples: string[];
-  notes?: string;
-  relatedWords: string[];
-};
+// --- Types for client-side use (No change needed here, they are already pure Zod/TS) ---
+export type Exchange = z.infer<typeof lessonSchema>['exchanges'][number]; // Infer from lessonSchema's exchanges array
+export type WordDetail = z.infer<typeof vocabularySchema>; // Can directly infer from vocabularySchema
 
 export type ChatMessage = {
-  id: string;
+  id: string; // Ensure this matches Firestore's string ID if stored
   sender: 'user' | 'assistant';
   text: string;
   timestamp: number;
 };
 
 export type UserAnswer = {
-  exchangeId: string;
+  exchangeId: string; // Assuming exchangeId can be a string
   blankIndex: number;
   answer: string;
   isCorrect: boolean;

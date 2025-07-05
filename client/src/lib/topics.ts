@@ -1,3 +1,5 @@
+// @/lib/topics.ts
+
 import { Topic } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
 import { API_BASE_URL } from '../config'; 

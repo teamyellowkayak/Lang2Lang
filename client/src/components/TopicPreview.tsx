@@ -1,5 +1,6 @@
 import { useLocation } from 'wouter';
 import { Topic } from '@shared/schema';
+import { API_BASE_URL } from '@/config'; // Import API_BASE_URL from your config
 
 interface TopicPreviewProps {
   topic: Topic | null;
@@ -7,8 +8,9 @@ interface TopicPreviewProps {
 }
 
 const TopicPreview: React.FC<TopicPreviewProps> = ({ topic, isLoading }) => {
+  console.log("Rendering TopicPreview component.");
   const [_, setLocation] = useLocation();
-  
+
   if (isLoading) {
     return (
       <div className="w-full md:w-2/3">
@@ -39,7 +41,7 @@ const TopicPreview: React.FC<TopicPreviewProps> = ({ topic, isLoading }) => {
       </div>
     );
   }
-  
+
   if (!topic) {
     return (
       <div className="w-full md:w-2/3">
@@ -58,11 +60,39 @@ const TopicPreview: React.FC<TopicPreviewProps> = ({ topic, isLoading }) => {
     );
   }
 
-  const startLesson = () => {
-    // Navigate to the lesson page with the topic ID
-    setLocation(`/lesson/${topic.id}`);
+  // MODIFIED startLesson function to fetch the actual lesson ID
+  const startLesson = async () => {
+    if (!topic?.id) {
+      console.error("Topic ID is missing for starting a lesson.");
+      return;
+    }
+
+    try {
+      // Step 1: Call the backend to get the next available lesson ID for this topic
+      const response = await fetch(`${API_BASE_URL}/api/topics/${topic.id}/next-lesson`);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to get next lesson from backend.');
+      }
+
+      const data = await response.json();
+      const lessonId = data.lessonId; // This is the actual Firestore document ID (e.g., 3EkE8QGELIxYQi9Ci9UM)
+
+      if (lessonId) {
+        // Step 2: Navigate to the lesson page using the received lessonId
+        setLocation(`/lesson/${lessonId}`);
+      } else {
+        // Handle case where no available lesson is found (e.g., all are 'done' for this topic)
+        alert('No available or in-progress lessons for this topic. All done?');
+        // You might want to display a toast notification or a more user-friendly message here.
+      }
+    } catch (error: any) {
+      console.error('Error starting lesson:', error);
+      alert(`Error starting lesson: ${error.message}`);
+    }
   };
-  
+
   return (
     <div className="w-full md:w-2/3">
       <div className="bg-white rounded-lg shadow p-6">
@@ -70,9 +100,9 @@ const TopicPreview: React.FC<TopicPreviewProps> = ({ topic, isLoading }) => {
           <h2 className="text-xl font-semibold text-gray-900">{topic.title}</h2>
           <span className="px-3 py-1 bg-primary-100 text-primary-800 rounded-full text-sm font-medium">{topic.difficulty}</span>
         </div>
-        
+
         <p className="text-gray-600 mb-6">{topic.description}</p>
-        
+
         <div className="mb-6">
           <h3 className="text-base font-medium text-gray-900 mb-2">You'll learn:</h3>
           <div className="flex flex-wrap gap-2">
@@ -84,7 +114,7 @@ const TopicPreview: React.FC<TopicPreviewProps> = ({ topic, isLoading }) => {
             <span className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">14 essential exchanges</span>
           </div>
         </div>
-        
+
         <div className="border-t border-b border-gray-200 py-4 my-4">
           <h3 className="text-base font-medium text-gray-900 mb-3">Sample phrases you'll master:</h3>
           <ul className="space-y-2 text-gray-700">
@@ -102,10 +132,10 @@ const TopicPreview: React.FC<TopicPreviewProps> = ({ topic, isLoading }) => {
             </li>
           </ul>
         </div>
-        
+
         <div className="flex flex-col sm:flex-row gap-3 mt-6">
-          <button 
-            onClick={startLesson}
+          <button
+            onClick={startLesson} // This button calls the async startLesson function
             className="inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
           >
             <span className="material-icons mr-1 text-sm">play_arrow</span>

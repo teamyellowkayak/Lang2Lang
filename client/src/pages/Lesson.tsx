@@ -8,7 +8,7 @@ import { Lesson as LessonType } from '@shared/schema';
 const Lesson = () => {
   const [_, params] = useRoute('/lesson/:id');
   const [__, setLocation] = useLocation();
-  const lessonId = params?.id ? parseInt(params.id) : 0;
+  const lessonId = params?.id ? params.id : 0;
   
   const { data: lesson, isLoading, error } = useLesson(lessonId);
   const [currentExchangeIndex, setCurrentExchangeIndex] = useState(0);

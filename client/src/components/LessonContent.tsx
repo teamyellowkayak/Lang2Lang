@@ -48,6 +48,7 @@ const LessonContent: React.FC<LessonContentProps> = ({
   }, [currentExchange]);
 
   // Function to process the exchange text and fill in blanks
+  // TODO: remove this function - no longer needed
   const processExchangeText = useCallback((exchange: Exchange) => {
     if (!exchange.blanks || exchange.blanks.length === 0) {
       return exchange.translatedText;
@@ -101,15 +102,15 @@ const LessonContent: React.FC<LessonContentProps> = ({
   }, []);
   
   // Get the text to display, which may have blank placeholders
-  const displayText = useMemo(() => {
-    if (!currentExchange) return '';
-    return processExchangeText(currentExchange);
-  }, [currentExchange, processExchangeText]);
+  // const displayText = useMemo(() => {
+  //  if (!currentExchange) return '';
+  //   return processExchangeText(currentExchange);
+  // }, [currentExchange, processExchangeText]);
   
   // Split the display text into words for rendering individual words
-  const words = useMemo(() => {
-    return displayText.split(' ');
-  }, [displayText]);
+  // const words = useMemo(() => {
+  //   return displayText.split(' ');
+  // }, [displayText]);
 
   // Helper function to normalize text for comparison (removes accents and punctuation)
   const normalizeText = (text: string): string => {
@@ -235,66 +236,57 @@ const LessonContent: React.FC<LessonContentProps> = ({
     }
   };
 
-  const renderWordOrBlank = (word: string, index: number) => {
-    // Special handling for our blank placeholder (now "______")
-    if (word === "______") {
-      // Find the blank index that corresponds to this position
-      const blankIndex = currentExchange?.blanks?.findIndex(blank => blank.index === index);
-      
-      if (blankIndex === undefined || blankIndex === -1) {
-        // Fallback in case we couldn't find the blank
-        return <span>{word}</span>;
-      }
-      
-      // This is a blank to fill in
-      const userAnswer = userAnswers.find(
-        ans => ans.exchangeId === currentExchange!.id && ans.blankIndex === index
-      );
-      
-      const correct = userAnswer?.isCorrect;
-      const correctAnswer = currentExchange?.blanks?.find(blank => blank.index === index)?.correctAnswer;
-      
-      return (
-        <span className="fill-blank mx-1" key={`blank-${index}`}>
-          {showFeedback && userAnswer ? (
-            <span>
-              {correct ? (
-                // If the answer is correct but not exact (missing accents), show it in green
-                <span className="text-green-600">
-                  {userAnswer.isAlmostCorrect ? correctAnswer : userAnswer.answer}
-                </span>
-              ) : (
-                // If the answer is wrong, show the user's input in red and the correct answer in green
-                <>
-                  <span className="text-red-400">{userAnswer.answer}</span>
-                  <span className="ml-1 text-green-600">{correctAnswer}</span>
-                </>
-              )}
-            </span>
-          ) : (
-            <input 
-              type="text" 
-              className="w-24 bg-transparent border-b border-gray-400 outline-none text-center"
-              placeholder="______"
-              value={inputs[index] || ''}
-              onChange={(e) => handleInputChange(index, e.target.value)}
-            />
-          )}
-        </span>
-      );
-    } else {
-      // Regular word, might be clickable if from the other speaker
-      return (
-        <span
-          key={`word-${index}`}
-          className={currentExchange?.speaker === 'other' ? 'clickable-word' : undefined}
-          onClick={currentExchange?.speaker === 'other' ? () => handleWordClick(word) : undefined}
-        >
-          {word}
-        </span>
-      );
-    }
-  };
+const renderWordOrBlank = (word: string, wordIndex: number) => { // Renamed index to wordIndex for clarity
+  const blankData = currentExchange?.blanks?.find(blank => blank.index === wordIndex);
+
+  if (blankData) { // If blankData exists, this word position should be a blank
+    const userAnswer = userAnswers.find(
+      (ans) => ans.exchangeId === currentExchange!.id && ans.blankIndex === wordIndex // Use wordIndex here
+    );
+
+    const correct = userAnswer?.isCorrect;
+    const correctAnswer = blankData.correctAnswer; // Directly use blankData
+
+    return (
+      <span className="fill-blank mx-1" key={`blank-${wordIndex}`}>
+        {showFeedback && userAnswer ? (
+          <span>
+            {correct ? (
+              <span className="text-green-600">
+                {userAnswer.isAlmostCorrect ? correctAnswer : userAnswer.answer}
+              </span>
+            ) : (
+              <>
+                <span className="text-red-400">{userAnswer.answer}</span>
+                <span className="ml-1 text-green-600">{correctAnswer}</span>
+              </>
+            )}
+          </span>
+        ) : (
+          <input
+            type="text"
+            className="w-24 bg-transparent border-b border-gray-400 outline-none text-center"
+            placeholder="______"
+            value={inputs[wordIndex] || ''} // Use wordIndex here
+            onChange={(e) => handleInputChange(wordIndex, e.target.value)} // Use wordIndex here
+          />
+        )}
+      </span>
+    );
+  } else {
+    // This is a regular word, might be clickable if from the other speaker
+    return (
+      <span
+        key={`word-${wordIndex}`} // Use wordIndex here
+        className={currentExchange?.speaker === 'other' ? 'clickable-word' : undefined}
+        onClick={currentExchange?.speaker === 'other' ? () => handleWordClick(word) : undefined}
+      >
+        {word}
+      </span>
+    );
+  }
+};
+  
 
   if (!currentExchange) {
     return (
@@ -337,18 +329,19 @@ const LessonContent: React.FC<LessonContentProps> = ({
                     
                     {/* Translated text with interactive words */}
                     <p className="text-gray-900">
-                      {exchangeIdx === currentExchangeIndex ? (
+                        {exchangeIdx === currentExchangeIndex ? (
                         // Current exchange - interactive with blanks
-                        words.map((word, wordIdx) => (
-                          <span key={`word-fragment-${wordIdx}`}>
-                            {renderWordOrBlank(word, wordIdx)}
-                            {wordIdx < words.length - 1 && " "}
-                          </span>
-                        ))
-                      ) : (
-                        // Previous exchanges - just show the text
-                        exchange.translatedText
-                      )}
+                        currentExchange.translatedText.split(' ').map((word, wordIdx) => (
+                        <React.Fragment key={`word-fragment-${wordIdx}`}>
+                        {renderWordOrBlank(word, wordIdx)}
+                        {wordIdx < currentExchange.translatedText.split(' ').length - 1 && " "}
+                   </React.Fragment>
+                    ))
+                    ) : (
+                    // Previous exchanges - just show the text
+                    exchange.translatedText
+                    )}
+
                     </p>
                   </div>
                 </div>
