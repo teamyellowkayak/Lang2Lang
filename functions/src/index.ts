@@ -68,10 +68,18 @@ interface StoredLesson extends LessonDataFromAI {
   createdAt: admin.firestore.FieldValue;
 }
 
-const LESSON_PROMPT = [
+const LESSONPROMPT_1 = [
   "You are a language learning lesson generator.",
-  "Your task is to create a structured language lesson in Spanish",
-  "based on a given topic. The lesson should be engaging and useful for",
+  "Your task is to create a structured language lesson in ",
+].join("\n");
+
+const LESSONPROMPT_2 = [
+  " based on this given topic: '",
+].join("\n");
+
+const LESSONPROMPT_3 = [
+  "'. ",
+  "The lesson should be engaging and useful for",
   "a beginner to intermediate learner.",
   "",
   "The output MUST be a single, well-formed JSON object.",
@@ -89,12 +97,12 @@ const LESSON_PROMPT = [
   " \"speakerName\": \"string\", // e.g., \"You\", \"Ana\", \"Doctor\"",
   " \"nativeText\": \"string\", // Original text in English",
   " \"translatedText\": \"string\", // Translated text in Spanish",
-  // " \"blanks\": [",
-  // " {",
-  // " \"index\": number, // Index of the word to blank (0-based)",
-  // " \"correctAnswer\": \"string\" // The original word at that index",
-  // "        }",
-  // "      ]",
+  " \"blanks\": [",
+  " {",
+  " \"index\": number, // Index of the word to blank (0-based)",
+  " \"correctAnswer\": \"string\" // The original word at that index",
+  "        }",
+  "      ]",
   "    }",
   "    // ... up to 10 exchange objects",
   "  ]",
@@ -102,7 +110,7 @@ const LESSON_PROMPT = [
   "",
   "Important Rules for Lesson Content:",
   "1. **Topic:** ",
-  " The lesson content must be relevant to the topic '${topicTitle}'.",
+  " The lesson content must be relevant to the topic provided above.",
   "2. **Number of Exchanges:** Generate exactly 10 exchange objects.",
   "3. **Speakers:** Alternate speakers between \"user\" and \"other\".",
   "   Start with \"user\".",
@@ -116,15 +124,16 @@ const LESSON_PROMPT = [
   "  for the exchanges.",
   "8. **Title:** The title should be concise ",
   "  and descriptive of the lesson.",
-  // "9. **Blanks:** For EACH exchange, create 2 blanks.",
+  "9. **Blanks:** For EACH exchange, make every word a blank.",
+  // create 2 blanks.",
   // "   * Blanks should be common or key vocabulary words ",
   // "  relevant to the lesson.",
   // "   * Blanks should target a variety of grammatical categories.",
-  // "   * The \"index\" for \"blanks\" is the 0-based word index in the",
-  // "     \"translatedText\" string.",
-  // "   * The \"correctAnswer\" is the word found at that exact index.",
-  // "   * Do NOT include the blank character (e.g., \"_\") in the",
-  // "     \"translatedText\". The \"blanks\" array provides info for UI.",
+  "   * The \"index\" for \"blanks\" is the 0-based word index in the",
+  "     \"translatedText\" string.",
+  "   * The \"correctAnswer\" is the word found at that exact index.",
+  "   * Do NOT include the blank character (e.g., \"_\") in the",
+  "     \"translatedText\". The \"blanks\" array provides info for UI.",
   "",
   "Example JSON (for structure only, content should be unique ",
   "  per topic):",
@@ -136,20 +145,24 @@ const LESSON_PROMPT = [
   "\"speakerName\":\"You\",",
   "\"nativeText\":\"Hello! How are you?\",",
   "\"translatedText\":\"¡Hola! ¿Cómo estás?\",",
-  // "\"blanks\":[",
-  // "{\"index\":0,\"correctAnswer\":\"Hola\"},",
-  // "{\"index\":2,\"correctAnswer\":\"estás\"}",
-  // "]",
+  "\"blanks\":[",
+  "{\"index\":0,\"correctAnswer\":\"Hola\"},",
+  "{\"index\":1,\"correctAnswer\":\"Cómo\"},",
+  "{\"index\":2,\"correctAnswer\":\"estás\"}",
+  "]",
   "},",
   "{\"id\":\"ex2\",",
   "\"speaker\":\"other\",",
   "\"speakerName\":\"Maria\",",
   "\"nativeText\":\"I am good, thank you. And you?\",",
   "\"translatedText\":\"Estoy bien, gracias. ¿Y tú?\",",
-  // "\"blanks\":[",
-  // "{\"index\":0,\"correctAnswer\":\"Estoy\"},",
-  // "{\"index\":2,\"correctAnswer\":\"gracias\"}",
-  // "]",
+  "\"blanks\":[",
+  "{\"index\":0,\"correctAnswer\":\"Estoy\"},",
+  "{\"index\":1,\"correctAnswer\":\"bien\"},",
+  "{\"index\":2,\"correctAnswer\":\"gracias\"},",
+  "{\"index\":3,\"correctAnswer\":\"Y\"},",
+  "{\"index\":4,\"correctAnswer\":\"tú\"}",
+  "]",
   "}", // End of ex2
   "]}", // End of exchanges array
 ].join("\n");
@@ -168,10 +181,15 @@ exports.createLesson = functions
   .https.onRequest(
     {secrets: [geminiApiKey]},
     async (req: Request, res: Response) => {
-      const {topicId, topicTitle} = req.body;
+      const {topicId, topicTitle, topicLanguage} = req.body;
 
       if (!topicId || !topicTitle) {
         res.status(400).json({success: false, message: "need TopicID & Title"});
+        return;
+      }
+
+      if (!topicLanguage) {
+        res.status(400).json({success: false, message: "need language"});
         return;
       }
 
@@ -179,8 +197,9 @@ exports.createLesson = functions
       const apiKey = geminiApiKey.value();
 
       try {
-        console.log("createLesson called with topicId:", topicId);
-
+        console.log("createLesson called: topicId:", topicId);
+        console.log("createLesson called: title:", topicTitle);
+        console.log("createLesson called: language:", topicLanguage);
 
         // The console.log will now accurately reflect
         // if the secret was loaded by Firebase
@@ -202,7 +221,14 @@ exports.createLesson = functions
           model: "gemini-1.5-pro-latest",
         });
 
-        const result = await model.generateContent(LESSON_PROMPT);
+        const lessonPrompt = LESSONPROMPT_1 +
+            topicLanguage +
+            LESSONPROMPT_2 +
+            topicTitle +
+            LESSONPROMPT_3;
+
+        // const X = `${LESSONPROMPT_1}${topicTitle}${LESSONPROMPT_2}`;
+        const result = await model.generateContent(lessonPrompt);
         const response = await result.response;
         const text = response.text();
 

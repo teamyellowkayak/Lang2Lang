@@ -34,6 +34,7 @@ const db = new Firestore();
 interface CreateLessonCloudFunctionData {
   topicId: string;
   topicTitle: string;
+  topicLanguage: string;
 }
 
 // Define the expected return type from the Cloud Function
@@ -88,7 +89,7 @@ export class FirestoreStorage {
           'Authorization': `Bearer ${idToken}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(payload) 
+        body: JSON.stringify(payload)
       });
 
       if (!response.ok) {
@@ -200,7 +201,7 @@ export class FirestoreStorage {
   }
 
  async getNextLessonForTopic(topicId: string, topicTitle: string): Promise<string | null> {
-    console.log(`[Firestore] Searching for next lesson for topicId: ${topicId}. v2025.06.15a with title: ${topicTitle}.`);
+    console.log(`[Firestore] Storage.ts Searching for next lesson for topicId: ${topicId}. v2025.07.05a with title: ${topicTitle}.`);
     topicTitle = topicTitle ?? 'New lesson without a topicTitle';
     const lessonsRef = db.collection('lessons');
 
@@ -237,12 +238,32 @@ export class FirestoreStorage {
     console.log(`[Firestore] No available or in-progress lessons found for topicId: ${topicId}. Calling Cloud Function to create a new one.`);
 
     try {
-        console.log(`About to create new lesson for topicId: ${topicId} with title: ${topicTitle}.`);
+
+        const topic = await this.getTopicById(topicId);
+        if (!topic) {
+            console.error(`[Firestore] Topic with ID ${topicId} not found when trying to create new lesson.`);
+            return null;
+        }
+
+        // 'targetLanguage' is the code (e.g., "es")
+        const targetLanguageCode = topic.targetLanguage;
+        const language = await this.getLanguageByCode(targetLanguageCode);
+
+        if (!language) {
+            console.error(`[Firestore] Language with code ${targetLanguageCode} not found for topic ID ${topicId}.`);
+            return null;
+        }
+
+        // 'language.name' is the full name (e.g., "Spanish")
+        const fullTopicLanguageName = language.name;
+
+        console.log(`About to create new lesson for topicId: ${topicId} with title: ${topicTitle} and language: ${fullTopicLanguageName}.`);
 
        // If this promise resolves, 'newLesson' will directly be the StoredLesson object.
         const newLesson = await this.createLesson({
             topicId: topicId,
             topicTitle: topicTitle,
+            topicLanguage: fullTopicLanguageName,
         });
 
 

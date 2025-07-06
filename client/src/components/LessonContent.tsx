@@ -1,3 +1,5 @@
+// components/LessonContent.tsx
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Lesson, Exchange } from '@shared/schema';
 import WordExploration from './WordExploration';
@@ -206,17 +208,36 @@ const LessonContent: React.FC<LessonContentProps> = ({
   const getWordOptions = () => {
     if (!currentExchange?.blanks) return [];
 
-    const correctWords = currentExchange.blanks.map(blank => blank.correctAnswer);
-    
-    // Add some incorrect but plausible options
-    const additionalOptions = [
+    const optionsSet = new Set<string>(); // Use a Set to automatically handle duplicates
+
+    // 1. Add all correct answers from the current exchange's blanks
+    currentExchange.blanks.forEach(blank => {
+      optionsSet.add(blank.correctAnswer);
+      // 2. Add all incorrect answers provided by the AI for each blank
+      if (blank.incorrectAnswers && Array.isArray(blank.incorrectAnswers)) {
+        blank.incorrectAnswers.forEach(incorrect => {
+          optionsSet.add(incorrect);
+        });
+      }
+    });
+
+    // Optional: Add some hardcoded generic distractors if the AI didn't provide enough.
+    // This ensures a minimum number of options if the combined correct + AI-incorrect
+    // don't reach a desired threshold (e.g., 6 or 8 options total).
+    const desiredMinTotalOptions = 8; // Adjust this number as needed
+    const additionalGenericOptions = [
       'encontrar', 'autobús', 'preguntar', 'tren', 'indicar', 'mostrar',
       'camino', 'dirección', 'llegar', 'parada', 'ciudad', 'lugar'
     ];
-    
-    // Combine correct answers with additional options, then shuffle
-    const options = [...correctWords, ...additionalOptions.slice(0, 8 - correctWords.length)];
-    return options.sort(() => Math.random() - 0.5);
+
+    let genericIndex = 0;
+    while (optionsSet.size < desiredMinTotalOptions && genericIndex < additionalGenericOptions.length) {
+      optionsSet.add(additionalGenericOptions[genericIndex]);
+      genericIndex++;
+    }
+
+    // Convert the Set to an Array and shuffle it before returning
+    return Array.from(optionsSet).sort(() => Math.random() - 0.5);
   };
 
   const handleOptionClick = (option: string) => {

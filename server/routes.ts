@@ -78,8 +78,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/topics/:topicId/next-lesson", async (req: Request, res: Response) => {
     try {
         const topicId = req.params.topicId;
-        const topicTitle = "No topic provided";
-        const lessonId = await storage.getNextLessonForTopic(topicId);
+        const topic = await storage.getTopicById(topicId);
+    
+        if (!topic) {
+          return res.status(404).json({ message: "Topic not found for the given ID." });
+        }
+    
+        const topicTitle = topic.title; 
+        const lessonId = await storage.getNextLessonForTopic(topicId, topicTitle);
 
         if (!lessonId) {
             return res.status(404).json({ message: "No available lessons found for this topic." });
