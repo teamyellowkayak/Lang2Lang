@@ -1,21 +1,23 @@
 // components/LessonContent.tsx
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Lesson, Exchange } from '@shared/schema';
 import WordExploration from './WordExploration';
-import { generateNewFillInTheBlanks, UserAnswer } from '@/lib/lessonData';
+import { UserAnswer } from '@/lib/lessonData';
 import { useLanguage } from '@/lib/languages';
 
 interface LessonContentProps {
   lesson: Lesson;
   currentExchangeIndex: number;
   onComplete: () => void;
+  onPrevious: () => void;
 }
 
 const LessonContent: React.FC<LessonContentProps> = ({
   lesson,
   currentExchangeIndex,
-  onComplete
+  onComplete,
+  onPrevious,
 }) => {
   const { currentLanguage } = useLanguage();
   const [exchanges, setExchanges] = useState<Exchange[]>(
@@ -26,7 +28,6 @@ const LessonContent: React.FC<LessonContentProps> = ({
   const [showOptions, setShowOptions] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const [showFeedback, setShowFeedback] = useState<'success' | 'error' | null>(null);
-  const [repeatMode, setRepeatMode] = useState<'same' | 'similar' | null>(null);
 
   const currentExchange = useMemo(() => {
     return exchanges[currentExchangeIndex] || null;
@@ -35,6 +36,56 @@ const LessonContent: React.FC<LessonContentProps> = ({
   // Generate input states for each blank in the current exchange
   const [inputs, setInputs] = useState<Record<number, string>>({});
 
+  // Store the shuffled word options for the current exchange
+  const [shuffledWordOptions, setShuffledWordOptions] = useState<string[]>([]);
+
+  const inputRefs = useRef<Record<number, HTMLInputElement | null>>({});
+ 
+  // Helper function to normalize text for comparison (removes accents and punctuation)
+  const normalizeText = (text: string): string => {
+    return text
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "") // Remove accents
+      .replace(/[.,!?¿'`;:()]/g, ""); // Remove punctuation
+  };
+
+  // Memoize the getWordOptions function itself if it doesn't depend on volatile state,
+  // or define it within a useEffect that runs when currentExchange changes.
+  // For simplicity and direct control, we'll keep it as a helper function
+  // and call it within a useEffect.
+  const getWordOptions = useCallback(() => {
+    if (!currentExchange?.blanks) return [];
+
+    const optionsSet = new Set<string>();
+
+    currentExchange.blanks.forEach(blank => {
+      optionsSet.add(blank.correctAnswer.toLowerCase().replace(/[.,!?¿'`;:()]/g, ""));
+      if (blank.incorrectAnswers && Array.isArray(blank.incorrectAnswers)) {
+        blank.incorrectAnswers.forEach(incorrect => {
+          optionsSet.add(incorrect.toLowerCase().replace(/[.,!?¿'`;:()]/g, ""));
+        });
+      }
+    });
+
+    const desiredMinTotalOptions = 8;
+    const additionalGenericOptions = [
+      'de', 'a', 'del', 'la', 'el', 'su',
+      'por', 'para', 'las', 'les', 'le', 'los'
+    ];
+
+    let genericIndex = 0;
+    while (optionsSet.size < desiredMinTotalOptions && genericIndex < additionalGenericOptions.length) {
+      optionsSet.add(additionalGenericOptions[genericIndex].toLowerCase());
+      genericIndex++;
+    }
+
+    // Convert the Set to an Array and shuffle it before returning
+    return Array.from(optionsSet).sort(() => Math.random() - 0.5);
+  }, [currentExchange]); // Recalculate this function if currentExchange changes
+
+  // useEffect to initialize inputs and populate shuffledWordOptions when currentExchange changes
   useEffect(() => {
     // Reset inputs when the exchange changes
     if (currentExchange?.blanks) {
@@ -46,11 +97,25 @@ const LessonContent: React.FC<LessonContentProps> = ({
       setShowOptions(false);
       setShowHint(false);
       setShowFeedback(null);
+      
+      const firstBlankIndex = currentExchange.blanks[0]?.index;
+      if (firstBlankIndex !== undefined && inputRefs.current[firstBlankIndex]) {
+        setTimeout(() => {
+          inputRefs.current[firstBlankIndex]?.focus();
+        }, 0);
+      }
     }
-  }, [currentExchange]);
+
+    // Generate and set shuffled word options when the current exchange changes
+    if (currentExchange) {
+      setShuffledWordOptions(getWordOptions());
+    } else {
+      setShuffledWordOptions([]); // Clear options if no current exchange
+    }
+  }, [currentExchange, getWordOptions]); // Add getWordOptions to dependencies since it's a useCallback now
 
   // Function to process the exchange text and fill in blanks
-  // TODO: remove this function - no longer needed
+/*  
   const processExchangeText = useCallback((exchange: Exchange) => {
     if (!exchange.blanks || exchange.blanks.length === 0) {
       return exchange.translatedText;
@@ -89,8 +154,7 @@ const LessonContent: React.FC<LessonContentProps> = ({
         );
         
         if (matchingBlank) {
-          // If this word is a blank answer elsewhere, replace with synonym or similar
-          // For now, let's hide it with an asterisk or change its form
+          // If this word is a blank answer elsewhere, replace with asterisk
           const maskedWord = word.replace(/[a-zA-Z]/g, '*');
           output += maskedWord + " ";
         } else {
@@ -102,6 +166,7 @@ const LessonContent: React.FC<LessonContentProps> = ({
     
     return output.trim();
   }, []);
+*/
   
   // Get the text to display, which may have blank placeholders
   // const displayText = useMemo(() => {
@@ -113,15 +178,6 @@ const LessonContent: React.FC<LessonContentProps> = ({
   // const words = useMemo(() => {
   //   return displayText.split(' ');
   // }, [displayText]);
-
-  // Helper function to normalize text for comparison (removes accents and punctuation)
-  const normalizeText = (text: string): string => {
-    return text
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "") // Remove accents
-      .replace(/[.,!?;:()]/g, ""); // Remove punctuation
-  };
 
   const handleCheck = () => {
     if (!currentExchange?.blanks) return;
@@ -159,37 +215,19 @@ const LessonContent: React.FC<LessonContentProps> = ({
     setShowHint(false);
   };
 
-  const handleRepeat = (mode: 'same' | 'similar') => {
-    setRepeatMode(mode);
-    
-    if (mode === 'same') {
-      // Reset current exchange but keep the same blanks
-      const initialInputs: Record<number, string> = {};
-      if (currentExchange?.blanks) {
+  const handleRepeat = () => {
+    // Reset current exchange but keep the same blanks
+    const initialInputs: Record<number, string> = {};
+    if (currentExchange?.blanks) {
         currentExchange.blanks.forEach(blank => {
-          initialInputs[blank.index] = '';
+        initialInputs[blank.index] = '';
         });
-      }
-      setInputs(initialInputs);
-    } else if (mode === 'similar') {
-      // Generate new blanks for all exchanges
-      const newExchanges = generateNewFillInTheBlanks(exchanges);
-      setExchanges(newExchanges);
-      
-      // Reset inputs for the new blanks
-      const initialInputs: Record<number, string> = {};
-      if (newExchanges[currentExchangeIndex]?.blanks) {
-        newExchanges[currentExchangeIndex].blanks.forEach(blank => {
-          initialInputs[blank.index] = '';
-        });
-      }
-      setInputs(initialInputs);
+        setInputs(initialInputs);    
+        setShowOptions(false);
+        setShowHint(false);
+        setShowFeedback(null);
+        setUserAnswers([]);
     }
-    
-    setShowOptions(false);
-    setShowHint(false);
-    setShowFeedback(null);
-    setUserAnswers([]);
   };
 
   const handleWordClick = (word: string) => {
@@ -203,41 +241,6 @@ const LessonContent: React.FC<LessonContentProps> = ({
       ...prev,
       [index]: value
     }));
-  };
-
-  const getWordOptions = () => {
-    if (!currentExchange?.blanks) return [];
-
-    const optionsSet = new Set<string>(); // Use a Set to automatically handle duplicates
-
-    // 1. Add all correct answers from the current exchange's blanks
-    currentExchange.blanks.forEach(blank => {
-      optionsSet.add(blank.correctAnswer);
-      // 2. Add all incorrect answers provided by the AI for each blank
-      if (blank.incorrectAnswers && Array.isArray(blank.incorrectAnswers)) {
-        blank.incorrectAnswers.forEach(incorrect => {
-          optionsSet.add(incorrect);
-        });
-      }
-    });
-
-    // Optional: Add some hardcoded generic distractors if the AI didn't provide enough.
-    // This ensures a minimum number of options if the combined correct + AI-incorrect
-    // don't reach a desired threshold (e.g., 6 or 8 options total).
-    const desiredMinTotalOptions = 8; // Adjust this number as needed
-    const additionalGenericOptions = [
-      'encontrar', 'autobús', 'preguntar', 'tren', 'indicar', 'mostrar',
-      'camino', 'dirección', 'llegar', 'parada', 'ciudad', 'lugar'
-    ];
-
-    let genericIndex = 0;
-    while (optionsSet.size < desiredMinTotalOptions && genericIndex < additionalGenericOptions.length) {
-      optionsSet.add(additionalGenericOptions[genericIndex]);
-      genericIndex++;
-    }
-
-    // Convert the Set to an Array and shuffle it before returning
-    return Array.from(optionsSet).sort(() => Math.random() - 0.5);
   };
 
   const handleOptionClick = (option: string) => {
@@ -257,12 +260,36 @@ const LessonContent: React.FC<LessonContentProps> = ({
     }
   };
 
-const renderWordOrBlank = (word: string, wordIndex: number) => { // Renamed index to wordIndex for clarity
-  const blankData = currentExchange?.blanks?.find(blank => blank.index === wordIndex);
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, currentIndex: number) => {
+    if (e.key === ' ') { // Check if the pressed key is the space bar
+      e.preventDefault(); // Prevent the space character from being entered into the input
 
-  if (blankData) { // If blankData exists, this word position should be a blank
-    const userAnswer = userAnswers.find(
-      (ans) => ans.exchangeId === currentExchange!.id && ans.blankIndex === wordIndex // Use wordIndex here
+      // Get all blank indices for the current exchange, sorted numerically
+      const blankIndices = currentExchange?.blanks
+        ?.map(blank => blank.index)
+        .sort((a, b) => a - b) || [];
+
+      // Find the position of the current blank in the sorted list
+      const currentBlankIndexInSortedArray = blankIndices.indexOf(currentIndex);
+
+      // Check if there is a next blank
+      if (currentBlankIndexInSortedArray !== -1 && currentBlankIndexInSortedArray < blankIndices.length - 1) {
+        const nextBlankIndex = blankIndices[currentBlankIndexInSortedArray + 1];
+        const nextInput = inputRefs.current[nextBlankIndex];
+        if (nextInput) {
+          nextInput.focus(); // Focus on the next input field
+        }
+      }
+      // If it's the last blank, do nothing
+    }
+  };
+
+  const renderWordOrBlank = (word: string, wordIndex: number) => {
+    const blankData = currentExchange?.blanks?.find(blank => blank.index === wordIndex);
+
+    if (blankData) { // If blankData exists, this word position should be a blank
+        const userAnswer = userAnswers.find(
+          (ans) => ans.exchangeId === currentExchange!.id && ans.blankIndex === wordIndex
     );
 
     const correct = userAnswer?.isCorrect;
@@ -288,8 +315,11 @@ const renderWordOrBlank = (word: string, wordIndex: number) => { // Renamed inde
             type="text"
             className="w-24 bg-transparent border-b border-gray-400 outline-none text-center"
             placeholder="______"
-            value={inputs[wordIndex] || ''} // Use wordIndex here
-            onChange={(e) => handleInputChange(wordIndex, e.target.value)} // Use wordIndex here
+            value={inputs[wordIndex] || ''}
+
+            onChange={(e) => handleInputChange(wordIndex, e.target.value)}
+            onKeyDown={(e) => handleInputKeyDown(e, wordIndex)}
+            ref={(el) => (inputRefs.current[wordIndex] = el)} 
           />
         )}
       </span>
@@ -419,7 +449,7 @@ const renderWordOrBlank = (word: string, wordIndex: number) => { // Renamed inde
               <div className="mb-4">
                 <div className="bg-gray-50 p-3 rounded-lg">
                   <div className="flex flex-wrap gap-2">
-                    {getWordOptions().map((option, index) => (
+                    {shuffledWordOptions.map((option, index) => (
                       <button 
                         key={index}
                         onClick={() => handleOptionClick(option)}
@@ -489,7 +519,7 @@ const renderWordOrBlank = (word: string, wordIndex: number) => { // Renamed inde
             <button 
               className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 flex items-center"
               disabled={currentExchangeIndex === 0}
-              onClick={() => onComplete()}
+              onClick={() => onPrevious()}
             >
               <span className="material-icons mr-1">arrow_back</span>
               Previous
@@ -497,21 +527,14 @@ const renderWordOrBlank = (word: string, wordIndex: number) => { // Renamed inde
             
             <div className="flex space-x-3">
               <button 
-                onClick={() => handleRepeat('same')}
+                onClick={handleRepeat}
                 className="px-4 py-2 border border-primary text-primary rounded-md hover:bg-primary-50 flex items-center"
               >
                 <span className="material-icons mr-1 text-sm">replay</span>
                 Repeat
               </button>
               <button 
-                onClick={() => handleRepeat('similar')}
-                className="px-4 py-2 border border-primary text-primary rounded-md hover:bg-primary-50 flex items-center"
-              >
-                <span className="material-icons mr-1 text-sm">shuffle</span>
-                Similar
-              </button>
-              <button 
-                className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark flex items-center"
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center"
                 onClick={() => onComplete()}
               >
                 Next

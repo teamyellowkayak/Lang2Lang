@@ -36,11 +36,6 @@ const geminiApiKey = defineSecret("GEMINI_API_KEY");
 
 // --- Define Interfaces ---
 
-// interface CreateLessonData {
-//   topicId: number;
-//   topicTitle: string;
-// }
-
 interface Blank {
   index: number;
   correctAnswer: string;
@@ -79,8 +74,10 @@ const LESSONPROMPT_2 = [
 
 const LESSONPROMPT_3 = [
   "'. ",
-  "The lesson should be engaging and useful for",
-  "a beginner to intermediate learner.",
+  "The lesson should be engaging and useful for a learner type: ",
+].join("\n");
+
+const LESSONPROMPT_4 = [
   "",
   "The output MUST be a single, well-formed JSON object.",
   "Do NOT include any text before or after the JSON.",
@@ -101,6 +98,7 @@ const LESSONPROMPT_3 = [
   " {",
   " \"index\": number, // Index of the word to blank (0-based)",
   " \"correctAnswer\": \"string\" // The original word at that index",
+  " \"incorrectAnswers\": [\"string\"],",
   "        }",
   "      ]",
   "    }",
@@ -116,10 +114,12 @@ const LESSONPROMPT_3 = [
   "   Start with \"user\".",
   "4. **Speaker Names:** Use diverse and appropriate names ",
   "  (e.g., \"You\",",
-  "   \"Maria\", \"Doctor\", \"Waiter\").",
+  "   \"Maria\", \"Doctor\", \"Waiter\"),",
+  "   but since it is a dialog ",
+  "   the name should be consistent for each exchange.",
   "5. **Native Text:** Provide clear, concise English sentences.",
-  "6. **Translated Text:** Provide accurate and natural-sounding Spanish",
-  "   translations.",
+  "6. **Translated Text:** Provide accurate, natural-sounding translations",
+  "   in the language specified above.",
   "7. **Context:** The context should briefly set the scene ",
   "  for the exchanges.",
   "8. **Title:** The title should be concise ",
@@ -134,8 +134,30 @@ const LESSONPROMPT_3 = [
   "   * The \"correctAnswer\" is the word found at that exact index.",
   "   * Do NOT include the blank character (e.g., \"_\") in the",
   "     \"translatedText\". The \"blanks\" array provides info for UI.",
+  "10. **Incorrect Answers (for Blanks):**",
+  "    * For EACH blank, provide an array of 3 'incorrectAnswers'.",
+  "    * Incorrect answers must be similar in appearance or type",
+  " to the 'correctAnswer', but NOT identical",
+  " and they should not be considered an accepted equivalent",
+  " words when translated.",
+  "    * Examples:",
+  "      - Nouns: if 'banana' is correct, incorrect could be ",
+  " 'bandana', 'manzana', 'platano'",
+  " or the plural version versus the singular version.",
+  "      - Articles/Prepositions: if 'El' is correct, incorrect could be ",
+  " 'del', 'la', 'le'.",
+  "      - Verbs: if 'habla' (he/she/usted speaks) is correct,",
+  " incorrect could be 'hablas' (you speak), 'hable' (subjunctive),",
+  " 'hablaba' (imperfect), 'hablo' (I speak).",
+  "      - Adjectives/Adverbs: similar gender/number variations,",
+  " plural versus singular, or related words.",
+  "      - General: similar looking words in the same language",
+  " such as if 'como' is correct, incorrect could be 'come', 'cama'.",
   "",
-  "Example JSON (for structure only, content should be unique ",
+  "11. **Learning level:**",
+  "    * exchanges content should be appropriate for ",
+  " the learning level stated above.",
+  " Example JSON (for structure only, content should be unique ",
   "  per topic):",
   "{\"title\":\"Greetings\",",
   "\"context\":\"Learn basic greetings.\",",
@@ -147,8 +169,12 @@ const LESSONPROMPT_3 = [
   "\"translatedText\":\"¡Hola! ¿Cómo estás?\",",
   "\"blanks\":[",
   "{\"index\":0,\"correctAnswer\":\"Hola\"},",
-  "{\"index\":1,\"correctAnswer\":\"Cómo\"},",
-  "{\"index\":2,\"correctAnswer\":\"estás\"}",
+  "{\"index\":0,\"correctAnswer\":\"Hola\",",
+  " \"incorrectAnswers\":[\"Holi\", \"Alo\", \"Adios\"]},",
+  "{\"index\":1,\"correctAnswer\":\"Cómo\",",
+  " \"incorrectAnswers\":[\"Come\", \"Cuándo\", \"Qué\"]},",
+  "{\"index\":2,\"correctAnswer\":\"estás\",",
+  " \"incorrectAnswers\":[\"estas\", \"este\", \"estamos\"]}",
   "]",
   "},",
   "{\"id\":\"ex2\",",
@@ -157,11 +183,16 @@ const LESSONPROMPT_3 = [
   "\"nativeText\":\"I am good, thank you. And you?\",",
   "\"translatedText\":\"Estoy bien, gracias. ¿Y tú?\",",
   "\"blanks\":[",
-  "{\"index\":0,\"correctAnswer\":\"Estoy\"},",
-  "{\"index\":1,\"correctAnswer\":\"bien\"},",
-  "{\"index\":2,\"correctAnswer\":\"gracias\"},",
-  "{\"index\":3,\"correctAnswer\":\"Y\"},",
-  "{\"index\":4,\"correctAnswer\":\"tú\"}",
+  "{\"index\":0,\"correctAnswer\":\"Estoy\",",
+  " \"incorrectAnswers\":[\"Es\", \"Está\", \"Están\"]},",
+  "{\"index\":1,\"correctAnswer\":\"bien\",",
+  " \"incorrectAnswers\":[\"bueno\", \"malo\", \"feliz\"]},",
+  "{\"index\":2,\"correctAnswer\":\"gracias\",",
+  " \"incorrectAnswers\":[\"gracia\", \"favor\", \"corazón\"]},",
+  "{\"index\":3,\"correctAnswer\":\"Y\",",
+  " \"incorrectAnswers\":[\"E\", \"O\", \"Pero\"]},",
+  "{\"index\":4,\"correctAnswer\":\"tú\",",
+  " \"incorrectAnswers\":[\"usted\", \"vos\", \"yo\"]}",
   "]",
   "}", // End of ex2
   "]}", // End of exchanges array
@@ -174,6 +205,8 @@ const LESSONPROMPT_3 = [
  * @param {Object} params - Parameters for the lesson.
  * @param {string} params.topicId - ID of the topic.
  * @param {string} params.topicTitle - Title of the topic.
+ * @param {string} params.topicLanguage - Language of the topic.
+ * @param {string} params.topicLevel - Level of the topic.
  * @return {Promise<Object>} A placeholder lesson object.
  */
 
@@ -181,7 +214,7 @@ exports.createLesson = functions
   .https.onRequest(
     {secrets: [geminiApiKey]},
     async (req: Request, res: Response) => {
-      const {topicId, topicTitle, topicLanguage} = req.body;
+      const {topicId, topicTitle, topicLanguage, topicLevel} = req.body;
 
       if (!topicId || !topicTitle) {
         res.status(400).json({success: false, message: "need TopicID & Title"});
@@ -193,6 +226,11 @@ exports.createLesson = functions
         return;
       }
 
+      if (!topicLevel) {
+        res.status(400).json({success: false, message: "need topic level"});
+        return;
+      }
+
       // 3. Access the secret's value using .value()
       const apiKey = geminiApiKey.value();
 
@@ -200,6 +238,7 @@ exports.createLesson = functions
         console.log("createLesson called: topicId:", topicId);
         console.log("createLesson called: title:", topicTitle);
         console.log("createLesson called: language:", topicLanguage);
+        console.log("createLesson called: level:", topicLevel);
 
         // The console.log will now accurately reflect
         // if the secret was loaded by Firebase
@@ -225,7 +264,9 @@ exports.createLesson = functions
             topicLanguage +
             LESSONPROMPT_2 +
             topicTitle +
-            LESSONPROMPT_3;
+            LESSONPROMPT_3 +
+            topicLevel +
+            LESSONPROMPT_4;
 
         // const X = `${LESSONPROMPT_1}${topicTitle}${LESSONPROMPT_2}`;
         const result = await model.generateContent(lessonPrompt);

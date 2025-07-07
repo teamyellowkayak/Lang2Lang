@@ -35,6 +35,7 @@ interface CreateLessonCloudFunctionData {
   topicId: string;
   topicTitle: string;
   topicLanguage: string;
+  topicLevel: string;
 }
 
 // Define the expected return type from the Cloud Function
@@ -246,6 +247,7 @@ export class FirestoreStorage {
         }
 
         // 'targetLanguage' is the code (e.g., "es")
+        const topicLevel = topic.difficulty;
         const targetLanguageCode = topic.targetLanguage;
         const language = await this.getLanguageByCode(targetLanguageCode);
 
@@ -257,13 +259,14 @@ export class FirestoreStorage {
         // 'language.name' is the full name (e.g., "Spanish")
         const fullTopicLanguageName = language.name;
 
-        console.log(`About to create new lesson for topicId: ${topicId} with title: ${topicTitle} and language: ${fullTopicLanguageName}.`);
+        console.log(`About to create new lesson for topicId: ${topicId} with title: ${topicTitle} language: ${fullTopicLanguageName} level: ${topicLevel}.`);
 
        // If this promise resolves, 'newLesson' will directly be the StoredLesson object.
         const newLesson = await this.createLesson({
             topicId: topicId,
             topicTitle: topicTitle,
             topicLanguage: fullTopicLanguageName,
+            topicLevel: topicLevel,
         });
 
 
@@ -335,6 +338,29 @@ export class FirestoreStorage {
     const docRef = db.collection('progress').doc(updatedProgress.id);
     await docRef.set(updatedProgress, { merge: true }); // Use merge:true to update fields without overwriting entire doc
     return updatedProgress;
+  }
+
+  async markLessonAsDone(lessonId: string): Promise<void> {
+    if (!lessonId) {
+      throw new Error("Lesson ID is required to mark a lesson as done.");
+    }
+
+    // Get a reference to the lesson document in the 'lessons' collection.
+    const lessonRef = db.collection('lessons').doc(lessonId);
+
+    try {
+      // Update the 'status' field to 'done' and set a server timestamp for 'completedAt'.
+      // If the document with lessonId does not exist, this operation will throw an error.
+      await lessonRef.update({
+        status: 'done' as LessonStatus, // Cast to LessonStatus to ensure type safety
+        // completedAt: Firestore.FieldValue.serverTimestamp(), // Get timestamp from Firestore server
+      });
+      console.log(`FirestoreStorage: Lesson ${lessonId} successfully marked as done.`);
+    } catch (error: any) {
+      console.error(`FirestoreStorage: Error marking lesson ${lessonId} as done:`, error);
+      // Re-throw the error so it can be caught and handled by the calling route (routes.ts)
+      throw new Error(`Failed to mark lesson ${lessonId} as done: ${error.message || 'Unknown error'}`);
+    }
   }
 }
 

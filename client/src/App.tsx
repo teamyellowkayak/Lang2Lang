@@ -15,7 +15,7 @@ import { LanguageProvider } from "@/lib/languageProvider";
 
 function AppRoutes() {
   const [location] = useLocation();
-  console.log("Wouter's current path 202507051500:", location);
+  console.log("Wouter's current path 202507060600:", location);
 
 
   return (

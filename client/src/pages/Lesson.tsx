@@ -6,6 +6,7 @@ import { useLesson } from '@/lib/lessonData';
 import LessonNavigation from '@/components/LessonNavigation';
 import LessonContent from '@/components/LessonContent';
 import { Lesson as LessonType } from '@shared/schema';
+import { API_BASE_URL } from '../config';
 
 const Lesson = () => {
   const [_, params] = useRoute('/lesson/:id');
@@ -30,11 +31,48 @@ const Lesson = () => {
       setCurrentExchangeIndex(0);
     }
   };
+
+  const handlePrevious = () => {
+    if (currentExchangeIndex > 0) {
+      setCurrentExchangeIndex(currentExchangeIndex - 1);
+    }
+    // The "Previous" button in LessonContent is disabled when currentExchangeIndex === 0
+  };
   
   const handleNavigation = (step: number) => {
     setCurrentExchangeIndex(step - 1);
   };
-  
+
+  const handleLessonCompletion = async () => {
+    console.log(`Frontend: Attempting to mark lesson ${lessonId} as done`);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/lessons/${lessonId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          // If your backend requires authentication (e.g., a Bearer token), add it here:
+          // 'Authorization': `Bearer ${yourAuthToken}`
+        },
+        // No request body is strictly necessary for this endpoint,
+        // as the ID in the URL and the PATCH method imply the action.
+        // body: JSON.stringify({ status: 'done' }) // Only if your backend specifically expects a body
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json(); // Attempt to parse error message from response
+        console.error(`Frontend: API call failed with status ${response.status}:`, errorData.message || 'Unknown error');
+        throw new Error(errorData.message || `Failed to mark lesson as done (Status: ${response.status})`);
+      }
+
+      console.log(`Frontend: Lesson ${lessonId} successfully marked as done on the backend.`);
+    } catch (error: any) {
+      console.error('Frontend: Error during API call to mark lesson as done:', error.message);
+    }
+    
+    // Navigate back to the topics page after the attempt (successful or not)
+    setLocation('/'); 
+  };
+
   // If there's an error loading the lesson, show an error message
   if (error) {
     return (
@@ -107,15 +145,17 @@ const Lesson = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <LessonNavigation 
-        currentStep={currentExchangeIndex + 1}
-        totalSteps={totalSteps}
-        onNavigate={handleNavigation}
-      />
+        <LessonNavigation 
+          currentStep={currentExchangeIndex + 1}
+          totalSteps={totalSteps}
+          onNavigate={handleNavigation}
+          onDone={handleLessonCompletion}
+        />
       
       <LessonContent 
         lesson={lesson as LessonType}
         currentExchangeIndex={currentExchangeIndex}
+        onPrevious={handlePrevious}
         onComplete={handleComplete}
       />
     </div>

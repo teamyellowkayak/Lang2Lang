@@ -192,6 +192,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch("/api/lessons/:id/status", async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params; // The ID of the lesson/topic to mark as done
+      
+      if (!id) {
+        return res.status(400).json({ message: "Lesson ID is required." });
+      }
+      await storage.markLessonAsDone(id); 
+      res.status(200).json({ message: `Lesson ${id} status updated to 'done'.` });
+    } catch (error: any) { // Catch potential errors from storage.markLessonAsDone
+      console.error(`Error marking lesson ${req.params.id} as done:`, error);
+      
+      // You might want to differentiate error types if storage.ts throws specific errors
+      // For example, if 'markLessonAsDone' throws an error indicating the lesson was not found:
+      // if (error.message.includes("not found")) { // This assumes a specific error message
+      //   return res.status(404).json({ message: "Lesson not found." });
+      // }
+      
+      res.status(500).json({ message: `Failed to mark lesson as done: ${error.message || 'Internal server error'}` });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
