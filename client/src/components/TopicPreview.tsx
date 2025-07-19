@@ -1,5 +1,5 @@
 import { useLocation } from 'wouter';
-import { Topic } from '@shared/schema';
+import type { Topic } from '@shared/schema';
 import { API_BASE_URL } from '@/config'; // Import API_BASE_URL from your config
 
 interface TopicPreviewProps {
@@ -113,24 +113,6 @@ const TopicPreview: React.FC<TopicPreviewProps> = ({ topic, isLoading }) => {
             ))}
             <span className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">14 essential exchanges</span>
           </div>
-        </div>
-
-        <div className="border-t border-b border-gray-200 py-4 my-4">
-          <h3 className="text-base font-medium text-gray-900 mb-3">Sample phrases you'll master:</h3>
-          <ul className="space-y-2 text-gray-700">
-            <li className="flex items-start">
-              <span className="material-icons text-primary-600 mr-2 text-sm">check_circle</span>
-              <span>"¿Dónde está el banco más cercano?" (Where is the nearest bank?)</span>
-            </li>
-            <li className="flex items-start">
-              <span className="material-icons text-primary-600 mr-2 text-sm">check_circle</span>
-              <span>"Gire a la derecha en la próxima calle." (Turn right at the next street.)</span>
-            </li>
-            <li className="flex items-start">
-              <span className="material-icons text-primary-600 mr-2 text-sm">check_circle</span>
-              <span>"¿Está lejos la estación de metro?" (Is the metro station far?)</span>
-            </li>
-          </ul>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 mt-6">

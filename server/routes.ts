@@ -1,9 +1,23 @@
+// Lang2Lang/server/routes.ts
+
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertLanguageSchema, insertTopicSchema, insertLessonSchema, insertVocabularySchema } from "@shared/schema";
+import {
+ insertLanguageSchema,
+ insertTopicSchema,
+ insertLessonSchema,
+ insertVocabularySchema, 
+ type Vocabulary
+} from "@shared/schema";
 import { z } from "zod";
-import { API_BASE_URL } from '../client/src/config';
+
+const vocabularyLookupSchema = z.object({
+  nativeText: z.string().min(1, "Native text cannot be empty"),
+  sourceLanguage: z.string().min(1, "Source language cannot be empty"),
+  targetLanguage: z.string().min(1, "Target language cannot be empty"),
+});
+
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Seed initial data
@@ -14,6 +28,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const languages = await storage.getLanguages();
       res.json(languages);
     } catch (error) {
+      console.error("Failed to fetch languages:", error);
       res.status(500).json({ message: "Failed to fetch languages" });
     }
   });
@@ -29,6 +44,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(language);
     } catch (error) {
+      console.error("Failed to fetch languages:", error);
       res.status(500).json({ message: "Failed to fetch language" });
     }
   });
@@ -149,6 +165,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/vocabulary-lookup", async (req: Request, res: Response) => {
+    try {
+      // 1. Validate the request body using Zod
+      const parseResult = vocabularyLookupSchema.safeParse(req.body);
+
+      if (!parseResult.success) {
+        return res.status(400).json({
+          message: "Invalid request body",
+          errors: parseResult.error.errors,
+        });
+      }
+
+      const { nativeText, sourceLanguage, targetLanguage } = parseResult.data;
+
+      // 2. Delegate the core lookup, AI call, and saving logic to the storage layer
+      const finalTranslations: Vocabulary[] = await storage.lookupAndTranslateVocabulary(
+        nativeText,
+        sourceLanguage,
+        targetLanguage
+      );
+
+      // 3. Send the structured response back to the frontend
+      res.json(finalTranslations);
+
+    } catch (error) {
+      console.error("Error in /api/vocabulary-lookup route:", error);
+      // Return a generic 500 error, as specific handling is now within storage.ts
+      res.status(500).json({ message: "Failed to process vocabulary lookup", error: (error as Error).message });
+    }
+  });  
+
   // Chat endpoint for word questions (simplified implementation)
   app.post("/api/chat", async (req: Request, res: Response) => {
     try {
@@ -213,6 +260,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: `Failed to mark lesson as done: ${error.message || 'Internal server error'}` });
     }
   });
+
+    app.post("/api/chat-about-sentence", async (req, res) => {
+      try {
+        const {
+          nativeText,
+          translatedText,
+          userQuestion,
+          sourceLanguage,
+          targetLanguage,
+        } = req.body;
+    
+        // Basic validation of incoming request body
+        if (
+          !nativeText ||
+          !translatedText ||
+          !userQuestion ||
+          !sourceLanguage ||
+          !targetLanguage
+        ) {
+          return res.status(400).json({
+            success: false,
+            message: "Missing required chat parameters.",
+          });
+        }
+    
+        // Call the storage service to interact with the Cloud Function
+        const chatResponse = await storage.chatAboutSentenceWithCloudFunction({
+          nativeText,
+          translatedText,
+          userQuestion,
+          sourceLanguage,
+          targetLanguage,
+        });
+    
+        // Send the explanation back to the frontend
+        res.json({ success: true, explanation: chatResponse.explanation });
+    
+      } catch (error: any) {
+        console.error("Error in /api/chat-about-sentence:", error);
+        res.status(500).json({
+          success: false,
+          message: error.message || "An unexpected error occurred during chat.",
+        });
+      }
+    });
 
   const httpServer = createServer(app);
   return httpServer;

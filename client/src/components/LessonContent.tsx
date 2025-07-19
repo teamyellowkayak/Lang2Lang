@@ -1,16 +1,26 @@
 // components/LessonContent.tsx
 
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Lesson, Exchange } from '@shared/schema';
-import WordExploration from './WordExploration';
-import { UserAnswer } from '@/lib/lessonData';
-import { useLanguage } from '@/lib/languages';
+import React, { useState, useEffect, useMemo, useCallback, useRef, type KeyboardEvent } from 'react';
+import type { Lesson as LessonType, Exchange, UserAnswer, LessonWithTopic, WordDetail } from '@shared/schema';
+import PhraseHelp from './PhraseHelpPanel';
 
 interface LessonContentProps {
-  lesson: Lesson;
+  lesson: LessonWithTopic;
   currentExchangeIndex: number;
   onComplete: () => void;
   onPrevious: () => void;
+  hintText: string;
+  onHintClick: (content: string) => void;
+  phraseHelpInput: string;
+  setPhraseHelpInput: (phrase: string) => void;
+  translatedWords: WordDetail[];
+  performPhraseLookup: (nativeText: string) => void;
+  sourceLanguage: string;
+  targetLanguage: string;
+  chatExplanation: string | null;
+  isLoadingChat: boolean;
+  chatError: string | null;
+  onAskAIQuestion: (nativeText: string, translatedText: string, userQuestion: string) => void;
 }
 
 const LessonContent: React.FC<LessonContentProps> = ({
@@ -18,15 +28,25 @@ const LessonContent: React.FC<LessonContentProps> = ({
   currentExchangeIndex,
   onComplete,
   onPrevious,
+  hintText,
+  onHintClick,
+  phraseHelpInput,
+  setPhraseHelpInput,
+  translatedWords,
+  performPhraseLookup,
+  sourceLanguage,
+  targetLanguage,
+  chatExplanation,
+  isLoadingChat,
+  chatError,
+  onAskAIQuestion,
 }) => {
-  const { currentLanguage } = useLanguage();
   const [exchanges, setExchanges] = useState<Exchange[]>(
     Array.isArray(lesson.exchanges) ? lesson.exchanges : []
   );
   const [selectedWord, setSelectedWord] = useState<string | null>(null);
   const [userAnswers, setUserAnswers] = useState<UserAnswer[]>([]);
   const [showOptions, setShowOptions] = useState(false);
-  const [showHint, setShowHint] = useState(false);
   const [showFeedback, setShowFeedback] = useState<'success' | 'error' | null>(null);
 
   const currentExchange = useMemo(() => {
@@ -51,10 +71,6 @@ const LessonContent: React.FC<LessonContentProps> = ({
       .replace(/[.,!?¿'`;:()]/g, ""); // Remove punctuation
   };
 
-  // Memoize the getWordOptions function itself if it doesn't depend on volatile state,
-  // or define it within a useEffect that runs when currentExchange changes.
-  // For simplicity and direct control, we'll keep it as a helper function
-  // and call it within a useEffect.
   const getWordOptions = useCallback(() => {
     if (!currentExchange?.blanks) return [];
 
@@ -95,7 +111,6 @@ const LessonContent: React.FC<LessonContentProps> = ({
       });
       setInputs(initialInputs);
       setShowOptions(false);
-      setShowHint(false);
       setShowFeedback(null);
       
       const firstBlankIndex = currentExchange.blanks[0]?.index;
@@ -112,7 +127,11 @@ const LessonContent: React.FC<LessonContentProps> = ({
     } else {
       setShuffledWordOptions([]); // Clear options if no current exchange
     }
-  }, [currentExchange, getWordOptions]); // Add getWordOptions to dependencies since it's a useCallback now
+    if (currentExchange) {
+      setPhraseHelpInput(currentExchange.nativeText);
+      // performPhraseLookup(currentExchange.nativeText);
+    }
+  }, [currentExchange, getWordOptions, setPhraseHelpInput, performPhraseLookup]);
 
   // Function to process the exchange text and fill in blanks
 /*  
@@ -200,7 +219,7 @@ const LessonContent: React.FC<LessonContentProps> = ({
       }
 
       newUserAnswers.push({
-        exchangeId: currentExchange.id,
+        exchangeId: currentExchange.id || `temp-exchange-${Date.now()}-${Math.random().toString(36).substring(7)}`,
         blankIndex: blank.index,
         answer: userAnswer,
         isCorrect,
@@ -212,7 +231,6 @@ const LessonContent: React.FC<LessonContentProps> = ({
     setUserAnswers(newUserAnswers);
     setShowFeedback(allCorrect ? 'success' : 'error');
     setShowOptions(false);
-    setShowHint(false);
   };
 
   const handleRepeat = () => {
@@ -224,7 +242,6 @@ const LessonContent: React.FC<LessonContentProps> = ({
         });
         setInputs(initialInputs);    
         setShowOptions(false);
-        setShowHint(false);
         setShowFeedback(null);
         setUserAnswers([]);
     }
@@ -319,7 +336,7 @@ const LessonContent: React.FC<LessonContentProps> = ({
 
             onChange={(e) => handleInputChange(wordIndex, e.target.value)}
             onKeyDown={(e) => handleInputKeyDown(e, wordIndex)}
-            ref={(el) => (inputRefs.current[wordIndex] = el)} 
+            ref={(el) => { inputRefs.current[wordIndex] = el; }} 
           />
         )}
       </span>
@@ -404,10 +421,13 @@ const LessonContent: React.FC<LessonContentProps> = ({
           <div className="border-t border-gray-200 pt-4">
             {currentExchange?.blanks ? (
               <div className="flex flex-wrap gap-3 mb-4">
-                <button 
+                <button
                   onClick={() => {
-                    setShowHint(!showHint);
-                    if (!showHint) setShowOptions(false);
+                    // Ensure that 'hintText' is passed down as a prop to LessonContent
+                    // and 'onHintClick' is also passed down as a prop.
+                    if (hintText) { // Only call if there's actual hint content
+                      onHintClick(hintText);
+                    }
                   }}
                   className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md text-sm font-medium flex items-center"
                 >
@@ -418,7 +438,6 @@ const LessonContent: React.FC<LessonContentProps> = ({
                 <button 
                   onClick={() => {
                     setShowOptions(!showOptions);
-                    if (!showOptions) setShowHint(false);
                   }}
                   className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md text-sm font-medium flex items-center"
                 >
@@ -459,21 +478,6 @@ const LessonContent: React.FC<LessonContentProps> = ({
                       </button>
                     ))}
                   </div>
-                </div>
-              </div>
-            )}
-            
-            {/* Hints */}
-            {showHint && (
-              <div className="mb-4">
-                <div className="bg-blue-50 p-3 rounded-lg">
-                  <p className="text-blue-800 text-sm">
-                    <span className="font-medium">Hint:</span> {
-                      currentExchange.id === 'ex1' 
-                        ? 'The first blank is a verb for "tell me" and the second is the Spanish word for "subway/metro"'
-                        : 'Look for words related to the context of the conversation'
-                    }
-                  </p>
                 </div>
               </div>
             )}
@@ -546,11 +550,20 @@ const LessonContent: React.FC<LessonContentProps> = ({
       </div>
       
       {/* Word Exploration Sidebar */}
-      <div className="w-full lg:w-1/3 mt-6 lg:mt-0">
-        <WordExploration 
-          word={selectedWord}
-          targetLanguage={currentLanguage}
-        />
+      <div className="w-full lg:w-1/3 mt-6 lg:mt-0 lg:ml-6 p-6 bg-white shadow-md rounded-lg">
+        <PhraseHelp
+          phraseHelpInput={phraseHelpInput}
+          setPhraseHelpInput={setPhraseHelpInput}
+          translatedWords={translatedWords}
+          performPhraseLookup={performPhraseLookup}
+          sourceLanguage={sourceLanguage} // Assuming these are props or state in LessonContent
+          targetLanguage={targetLanguage} // Adjust as per your actual state/prop management
+          translatedSentence={currentExchange.translatedText}
+          chatExplanation={chatExplanation}
+          isLoadingChat={isLoadingChat}
+          chatError={chatError}
+          onAskAIQuestion={onAskAIQuestion}
+       />
       </div>
     </div>
   );

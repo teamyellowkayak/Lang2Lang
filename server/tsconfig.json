@@ -1,0 +1,32 @@
+// /server/tsconfig.json
+{
+  "compilerOptions": {
+    "incremental": true,
+    "tsBuildInfoFile": "./node_modules/.tsbuildinfo", // More standard location
+    "noEmit": true, // For type-checking only, esbuild handles compilation
+    "target": "ESNext",
+    "module": "ESNext", // Keep as ESM for tsx and esbuild if your source is ESM
+    "strict": true,
+    "lib": ["esnext"], // Server should only need ESNext, NOT "dom" or "dom.iterable"
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "allowImportingTsExtensions": true, // Useful with tsx
+    "moduleResolution": "node", // Standard for Node.js resolution
+    "baseUrl": "./", // Base for path aliases, relative to server/ folder
+    "types": ["node"], // Crucial for Node.js environment
+    "paths": {
+      "@shared/*": ["../shared/*"], // Path to shared, relative from server/
+      "src/*": ["./src/*"] // If you use @/ in server code for server/src/
+    },
+    "verbatimModuleSyntax": true,
+    "rootDir": "./src", // The root of your source files within the server directory
+    "outDir": "./dist" // Where compiled output will go
+  },
+  "include": [
+    "./src/**/*.ts", // Include all TypeScript files in server/src
+    "./src/**/*.tsx", // Include any TSX files in server/src (if any)
+    "../shared/**/*.ts", // Include shared TypeScript files (relative path from server/)
+    "../shared/**/*.tsx" // Include shared TSX files (if any)
+  ],
+  "exclude": ["node_modules", "dist", "**/*.test.ts"]
+}

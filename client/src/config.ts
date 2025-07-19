@@ -1,7 +1,9 @@
 // Lang2Lang/client/src/config.ts
 
 // Backend API Base URL (Cloud Run service URL)
-export const API_BASE_URL = "https://lang2lang-dev-backend-453739630202.us-central1.run.app"; // Cloud Run URL
+export const API_BASE_URL = import.meta.env.DEV
+  ? "http://localhost:5000" // Use local backend during development (npm run dev)
+  : "https://lang2lang-dev-backend-453739630202.us-central1.run.app"; // Use Cloud Run URL for production builds (npm run build)
 
 
 // Frontend Application Base Path (for Wouter router)

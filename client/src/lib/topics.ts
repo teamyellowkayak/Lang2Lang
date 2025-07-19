@@ -1,6 +1,6 @@
 // @/lib/topics.ts
 
-import { Topic } from "@shared/schema";
+import type { Topic } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
 import { API_BASE_URL } from '../config'; 
 
@@ -54,7 +54,7 @@ export const getCategorizedTopics = (topics: Topic[]): TopicCategory[] => {
 
 export const defaultTopics: Topic[] = [
   {
-    id: 1,
+    id: "1",
     title: "Grocery Shopping",
     description: "Learn essential vocabulary and phrases for buying groceries and navigating supermarkets.",
     category: "Daily Situations",
@@ -65,7 +65,7 @@ export const defaultTopics: Topic[] = [
     imagePath: null
   },
   {
-    id: 2,
+    id: "2",
     title: "Asking for Directions",
     description: "Learn how to ask for and understand directions in Spanish. Master vocabulary for locations, spatial relations, and navigating a city.",
     category: "Daily Situations",
@@ -76,7 +76,7 @@ export const defaultTopics: Topic[] = [
     imagePath: null
   },
   {
-    id: 3,
+    id: "3",
     title: "Banking Services",
     description: "Learn vocabulary and phrases related to banking, opening accounts, and discussing financial options.",
     category: "Daily Situations",

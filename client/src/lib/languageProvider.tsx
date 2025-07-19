@@ -1,45 +1,54 @@
-// @/lib/LanguageProvider.tsx 
+// src/lib/languageProvider.tsx
 
-import React, { useState, useEffect, ReactNode } from 'react';
-import {
-  LanguageContext,
-  Language, // Import Language interface
-  _useFetchAllLanguages, // Import the internal fetching hook
+import React, { useState, useEffect, ReactNode, useMemo } from 'react'; // Import useMemo
+import { LanguageContext } from './languageContext';
+import type {
+  Language,
   LanguageContextType
-} from './languages'; // Adjust path if needed for languages.ts
+} from './languageContext'; 
+import { _useFetchAllLanguages } from './languages';
 
 interface LanguageProviderProps {
   children: ReactNode;
 }
 
 export const LanguageProvider = ({ children }: LanguageProviderProps) => {
-  const { data: allLanguages, isLoading, isError, error } = _useFetchAllLanguages();
-  const [currentLanguageCode, setCurrentLanguageCodeState] = useState<string>("es"); // State for the code
 
-  // Effect to set an initial current language code once data is loaded
+// below is where the issue most likely is
+  const { data: allLanguages, isLoading, isError, error } = _useFetchAllLanguages();
+  const [currentLanguageCode, setCurrentLanguageCodeState] = useState<string>("es");
+
+  console.log("LanguageProvider Status:");
+  console.log("  isLoading:", isLoading);
+  console.log("  isError:", isError);
+  console.log("  error (if any):", error);
+  console.log("  allLanguages (data):", allLanguages);
+
   useEffect(() => {
     if (allLanguages && allLanguages.length > 0 && currentLanguageCode === "es") {
-      // Ensure "es" exists, otherwise pick the first one from the fetched list
       const defaultExists = allLanguages.some(lang => lang.code === "es");
       if (!defaultExists) {
-
-        console.log('languageProvider.tsx 2: about to run setCurrentLanguageCodeState')
-
+        console.log('languageProvider.tsx: "es" not found, setting to first language');
         setCurrentLanguageCodeState(allLanguages[0].code);
+      } else {
+         console.log('languageProvider.tsx: "es" found or initial setup complete');
       }
+    } else if (allLanguages && allLanguages.length === 0) {
+        console.log('languageProvider.tsx: allLanguages array is empty, cannot set default.');
+    } else if (!allLanguages) {
+        console.log('languageProvider.tsx: allLanguages is null/undefined, waiting for data.');
     }
   }, [allLanguages, currentLanguageCode]);
 
-  // Derive the full currentLanguage object from the allLanguages array
-  const currentLanguage: Language | null = allLanguages?.find(
-    lang => lang.code === currentLanguageCode
-  ) || null;
+  const currentLanguage: Language | null = useMemo(
+    () => allLanguages?.find(lang => lang.code === currentLanguageCode) || null,
+    [allLanguages, currentLanguageCode]
+  );
 
-  // Memoize helper functions for performance (optional but good practice)
   const getLanguageName = React.useCallback((code: string): string => {
     const language = allLanguages?.find(lang => lang.code === code);
     return language ? language.name : "Unknown";
-  }, [allLanguages]); // Dependency array: recreate if allLanguages changes
+  }, [allLanguages]);
 
   const getLanguageNativeName = React.useCallback((code: string): string => {
     const language = allLanguages?.find(lang => lang.code === code);
@@ -48,27 +57,34 @@ export const LanguageProvider = ({ children }: LanguageProviderProps) => {
 
   const getFormattedLanguage = React.useCallback((code: string): string => {
     return `English → ${getLanguageName(code)}`;
-  }, [getLanguageName]); // Dependency on getLanguageName
+  }, [getLanguageName]);
 
-  // Override setCurrentLanguageCode to ensure it uses the local state
   const setCurrentLanguageCode = React.useCallback((code: string) => {
-
-    console.log('languageProvider.tsx 3: about to run setCurrentLanguageCodeState')
-
+    console.log('languageProvider.tsx: setCurrentLanguageCode called with', code);
     setCurrentLanguageCodeState(code);
   }, []);
 
-  // Prepare the context value
-  const contextValue: LanguageContextType = {
-    currentLanguage, // The full object
-    setCurrentLanguageCode, // Function to update the code
-    allLanguages: allLanguages || [], // Ensure it's always an array
-    isLoadingLanguages: isLoading,
+  // Wrap contextValue in useMemo to ensure it only updates when its dependencies change
+  const contextValue: LanguageContextType = useMemo(() => ({
+    currentLanguage,
+    setCurrentLanguageCode,
+    allLanguages: allLanguages || [],
+    isLoadingLanguages: isLoading, // This is the key part
     languagesError: isError ? error : null,
     getLanguageName,
     getLanguageNativeName,
     getFormattedLanguage,
-  };
+  }), [
+    currentLanguage,
+    setCurrentLanguageCode,
+    allLanguages,
+    isLoading, // << Make sure this is a dependency
+    isError,
+    error,
+    getLanguageName,
+    getLanguageNativeName,
+    getFormattedLanguage
+  ]);
 
   return (
     <LanguageContext.Provider value={contextValue}>

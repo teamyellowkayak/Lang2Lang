@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Topic } from '@shared/schema';
-import { TopicCategory } from '@/lib/topics';
+import type { Topic } from '@shared/schema';
+import type { TopicCategory } from '@/lib/topics';
 
 interface TopicSelectionProps {
   categories: TopicCategory[];

@@ -1,17 +1,23 @@
-import express, { type Request, Response, NextFunction } from "express";
+// server/index.ts
+
+import express, { type Request, type Response, type NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import cors from 'cors'; 
 
 const app = express();
 
 // Configure CORS options
+const allowedOrigins = process.env.NODE_ENV === 'development'
+  ? ['http://localhost:5173', 'https://storage.googleapis.com'] // Allow local dev and deployed frontend for development testing
+  : ['https://storage.googleapis.com']; // Only allow deployed frontend in production
+
+// Configure CORS options
 const corsOptions = {
-  // This must be the exact origin of your frontend, which is hosted on GCS.
-  // It should be 'https://storage.googleapis.com' for your deployed app.
-  origin: 'https://storage.googleapis.com',
-  methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE'], // Allowed methods
-  credentials: true, // Allow sending cookies/auth headers (useful if you add auth later)
-  optionsSuccessStatus: 204 // For preflight requests
+  // Use the determined allowedOrigins
+  origin: allowedOrigins,
+  methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE'],
+  credentials: true, // Keep this true for authentication/sessions
+  optionsSuccessStatus: 204
 };
 
 // Use the cors middleware

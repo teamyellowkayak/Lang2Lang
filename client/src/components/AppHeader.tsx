@@ -4,7 +4,8 @@ import { useState } from 'react'; // Keep useState
 // Import ONLY the useLanguage hook from your '@/lib/languages' file.
 // The LanguageContext is used internally by useLanguage.
 // 'languages' and 'getFormattedLanguage' are now provided via the context.
-import { useLanguage } from '@/lib/languages'; // This hook gives you access to the context values
+import { useLanguage } from '@/lib/languageContext'; 
+import { ModeToggle } from "@/components/mode-toggle"; 
 
 const AppHeader = () => {
   console.log("Rendering AppHeader component.");
@@ -19,13 +20,6 @@ const AppHeader = () => {
     languagesError,           // Error object if fetching failed
     getFormattedLanguage      // This helper function is now provided by the context
   } = useLanguage(); // Call the hook!
-
-  const [isDarkMode, setIsDarkMode] = useState(false);
-
-  const toggleTheme = () => {
-    setIsDarkMode(!isDarkMode);
-    // In a real implementation, we would add dark mode classes to the body
-  };
 
   const handleLanguageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     // Call the setCurrentLanguageCode function from the context
@@ -107,13 +101,9 @@ const AppHeader = () => {
           </div>
 
           {/* Theme Toggle */}
-          <button
-            id="theme-toggle"
-            className="p-2 rounded-full hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary"
-            onClick={toggleTheme}
-          >
-            <span className="material-icons">{isDarkMode ? 'dark_mode' : 'light_mode'}</span>
-          </button>
+          <div className="ml-auto"> 
+            <ModeToggle />
+          </div>
         </div>
       </div>
     </header>

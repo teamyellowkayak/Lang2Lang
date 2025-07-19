@@ -1,30 +1,36 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "./queryClient";
-import { Vocabulary, WordDetail, ChatMessage } from "@shared/schema";
+import { WordDetail, ChatMessage } from "@shared/schema";
 import { API_BASE_URL } from '../config';
 
 export const useWordDetails = (word: string, targetLanguage: string) => {
-  return useQuery({
-    queryKey: ['${API_BASE_URL}/api/vocabulary', word, targetLanguage],
+  return useQuery<WordDetail, Error>({ 
+    queryKey: ['/api/vocabulary', word, targetLanguage], 
     queryFn: async ({ queryKey }) => {
-      const [_, word, lang] = queryKey;
-      const response = await fetch(`${API_BASE_URL}/api/vocabulary?word=${word}&targetLanguage=${lang}`);
+      const [_, fetchedWord, fetchedTargetLanguage] = queryKey; // Destructure correctly
+      // Ensure fetchedWord and fetchedTargetLanguage are treated as strings
+      const response = await fetch(`${API_BASE_URL}/api/vocabulary?word=${fetchedWord}&targetLanguage=${fetchedTargetLanguage}`);
       if (!response.ok) {
         // If not found, return a basic structure
         if (response.status === 404) {
           return {
-            word: word as string,
+            id: `not-found-${fetchedWord}-${fetchedTargetLanguage}`,
+            word: fetchedWord as string,
             translation: "No translation available",
             partOfSpeech: "",
             definition: "No definition available",
             examples: [],
-            relatedWords: []
+            relatedWords: [],
+            targetLanguage: fetchedTargetLanguage as string,
+            sourceLanguage: "en"
           } as WordDetail;
         }
         throw new Error('Failed to fetch word details');
       }
       return response.json() as Promise<WordDetail>;
     },
+    gcTime: 10 * 60 * 1000,
+    staleTime: 5 * 60 * 1000,
     enabled: !!word && !!targetLanguage
   });
 };
@@ -60,6 +66,7 @@ export const useSendChatMessage = () => {
   return { sendMessage };
 };
 
+/*
 // Sample vocabulary data for use during development
 export const sampleVocabularyData: Vocabulary = {
   id: 1,
@@ -77,3 +84,4 @@ export const sampleVocabularyData: Vocabulary = {
   sourceLanguage: "en",
   relatedWords: ["estación", "tren", "transporte"]
 };
+*/

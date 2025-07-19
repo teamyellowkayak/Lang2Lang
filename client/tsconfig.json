@@ -1,0 +1,45 @@
+// client/tsconfig.json
+
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ES2020",
+    "lib": [
+      "ES2020",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "noEmit": true, // Vite handles compilation, so noEmit is appropriate here
+    "declaration": false,
+    "jsx": "react-jsx",
+    "types": ["vite/client"],
+    "baseUrl": "./src",
+    "paths": {
+      "@/*": ["./*"],
+      // With "baseUrl": "./src", to reach 'your-project/server/shared'
+      "@shared/*": ["../../server/shared/*"]
+    },
+    "allowImportingTsExtensions": true,
+      // Strictness and interop for better code quality and compatibility
+    "strict": true,                         // Enable all strict type-checking options
+    "esModuleInterop": true,                // Enables interoperability between CommonJS and ES modules
+    "forceConsistentCasingInFileNames": true, // Disallow inconsistently-cased file names
+    "moduleResolution": "bundler",          // Or "node". "bundler" is often good for Vite.
+    "skipLibCheck": true,                   // <--- CRITICAL: Suppress errors from declaration files in node_modules
+    "isolatedModules": true,                // For bundlers that process files in isolation (like Vite)
+    "resolveJsonModule": true               // Allows importing .json files
+  },
+  "include": [
+      "src/**/*.ts", 
+      "src/**/*.tsx", 
+      "../server/shared/**/*.ts",
+      "../server/shared/**/*.d.ts"
+  ],
+  "exclude": ["node_modules", "dist"],
+  "references": [
+    // If 'shared' is a separate TS project (has its own tsconfig.json),
+    // you might need a project reference here:
+    // { "path": "./tsconfig.app.json" },
+    // { "path": "./tsconfig.node.json" }
+  ]
+}

@@ -1,3 +1,5 @@
+// client/src/App.tsx
+
 import { Switch, Route, useLocation, Router as WouterRouter } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -15,7 +17,7 @@ import { LanguageProvider } from "@/lib/languageProvider";
 
 function AppRoutes() {
   const [location] = useLocation();
-  console.log("Wouter's current path 202507060600:", location);
+  console.log("Wouter's current path 202507081200:", location);
 
 
   return (
@@ -38,10 +40,9 @@ function App() {
       return (
         <QueryClientProvider client={queryClient}>
           <LanguageProvider> {/* This component now fetches data and provides the context */}
-            <div className="min-h-screen bg-gray-50 flex flex-col">
+            <div className="min-h-screen bg-background flex flex-col">
               <AppHeader />
               <main className="flex-grow">
-                {/* Use the imported FRONTEND_BASE_PATH here */}
                 <WouterRouter base={FRONTEND_BASE_PATH}>
                   <AppRoutes />
                 </WouterRouter>

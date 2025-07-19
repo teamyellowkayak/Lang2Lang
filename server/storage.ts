@@ -1,31 +1,31 @@
 // Lang2Lang/server/storage.ts
+
 import { Firestore } from "@google-cloud/firestore";
 // import { initializeApp, getApp, type App } from 'firebase-admin/app'; // see if needed any more
 // import { getFunctions, type Functions } from 'firebase-admin/functions'; // see if needed any more
 import { GoogleAuth } from 'google-auth-library';
+import * as dotenv from 'dotenv';
 
 import {
-  users,
   type User,
   type InsertUser,
-  languages,
   type Language,
   type InsertLanguage,
-  topics,
   type Topic,
   type InsertTopic,
-  lessons,
   type Lesson,
   type LessonStatus,
   type InsertLesson,
-  vocabulary,
   type Vocabulary,
   type InsertVocabulary,
-  progress,
   type Progress,
   type InsertProgress,
   type StoredLesson,
+  type AiTranslatedWord,
 } from "@shared/schema";
+
+// Loads local variables from .env into process.env
+dotenv.config(); 
 
 // --- Firestore Initialization ---
 const db = new Firestore();
@@ -44,6 +44,39 @@ interface CreateLessonCloudFunctionResult {
   lesson: StoredLesson; // Assuming StoredLesson is the shape of the saved lesson
 }
 
+interface TranslateVocabularyCloudFunctionData {
+  words: string[];
+  sourceLanguage: string;
+  targetLanguage: string;
+}
+
+interface TranslateVocabularyCloudFunctionResult {
+  success: boolean;
+  translations: AiTranslatedWord[];
+  message?: string; // Optional message in case of partial success or specific error
+}
+
+interface VocabularyEntry {
+  word: string;
+  translation: string; // comma-separated
+  sourceLanguage: string;
+  targetLanguage: string;
+  partOfSpeech: string | null; // comma-separated
+  gender: string | null; // null if not applicable or unknown
+}
+
+interface ChatAboutSentenceCloudFunctionData {
+  nativeText: string;
+  translatedText: string;
+  userQuestion: string;
+  sourceLanguage: string;
+  targetLanguage: string;
+}
+
+interface ChatAboutSentenceCloudFunctionResult {
+  success: boolean;
+  explanation: string;
+}
 
 // --- Firestore Storage Class ---
 export class FirestoreStorage {
@@ -201,7 +234,7 @@ export class FirestoreStorage {
     return { id: doc.id, ...doc.data() } as Lesson;
   }
 
- async getNextLessonForTopic(topicId: string, topicTitle: string): Promise<string | null> {
+  async getNextLessonForTopic(topicId: string, topicTitle: string): Promise<string | null> {
     console.log(`[Firestore] Storage.ts Searching for next lesson for topicId: ${topicId}. v2025.07.05a with title: ${topicTitle}.`);
     topicTitle = topicTitle ?? 'New lesson without a topicTitle';
     const lessonsRef = db.collection('lessons');
@@ -307,11 +340,327 @@ export class FirestoreStorage {
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Vocabulary[];
   }
 
-  async createVocabulary(insertVocabulary: InsertVocabulary): Promise<Vocabulary> {
-    const docRef = await db.collection('vocabulary').add(insertVocabulary);
-    const vocabulary: Vocabulary = { id: docRef.id, ...insertVocabulary } as Vocabulary;
-    return vocabulary;
+  /**
+   * Looks up a vocabulary entry using word, source language, and target language.
+   * This is intended for the specific lookup in the Phrase Help feature,
+   * where source language is crucial for uniqueness.
+   * @param word The word to look up (normalized).
+   * @param sourceLanguage The source language code (e.g., 'en').
+   * @param targetLanguage The target language code (e.g., 'es').
+   * @returns The Vocabulary object if found, otherwise undefined.
+   */
+  async getVocabularyEntrySpecific(
+    word: string,
+    sourceLanguage: string,
+    targetLanguage: string
+  ): Promise<Vocabulary | undefined> {
+    try {
+      const querySnapshot = await db.collection('vocabulary')
+        .where('word', '==', word)
+        .where('sourceLanguage', '==', sourceLanguage)
+        .where('targetLanguage', '==', targetLanguage)
+        .limit(1)
+        .get();
+
+      if (querySnapshot.empty) {
+        return undefined;
+      }
+      const doc = querySnapshot.docs[0];
+      return { id: doc.id, ...doc.data() } as Vocabulary;
+    } catch (error) {
+      console.error('Error fetching specific vocabulary entry:', error);
+      return undefined; // Consistent error handling
+    }
   }
+
+  /**
+   * Saves a new vocabulary entry to the database.
+   * This method is designed for inserting new AI-generated translations.
+   * @param entry The Vocabulary object to save (excluding 'id' as it's auto-generated).
+   * @returns The newly created Vocabulary object including its auto-generated ID, or null on error.
+   */
+  async saveVocabularyEntry(entry: Omit<Vocabulary, 'id'>): Promise<Vocabulary | null> {
+    try {
+      // Check for existing entry to prevent duplicates
+      const existingEntry = await this.getVocabularyEntrySpecific(
+        entry.word,
+        entry.sourceLanguage,
+        entry.targetLanguage
+      );
+
+      if (existingEntry) {
+        console.log('Vocabulary entry already exists, returning existing:', existingEntry.id);
+        return existingEntry; // Return the existing entry instead of creating a duplicate
+      }
+
+      const docRef = await db.collection('vocabulary').add(entry);
+      console.log('Vocabulary entry added with ID:', docRef.id);
+      return { id: docRef.id, ...entry } as Vocabulary;
+    } catch (error) {
+      console.error('Error saving vocabulary entry:', error);
+      return null;
+    }
+  }
+
+  private async translateVocabularyWithCloudFunction(
+    payload: TranslateVocabularyCloudFunctionData
+  ): Promise<TranslateVocabularyCloudFunctionResult> {
+    const functionName = "translateVocabulary"; // This is the name of your new Cloud Function
+    const projectId = process.env.GCLOUD_PROJECT;
+    const region = process.env.FUNCTION_REGION;
+
+    console.log("[BACKEND] Start: 202507090200"); 
+
+    if (!projectId || !region) {
+      throw new Error("Project ID or Function Region is not configured for Cloud Functions (for AI).");
+    }
+
+    const functionUrl = `https://${region}-${projectId}.cloudfunctions.net/${functionName}`;
+    const targetAudience = functionUrl;
+    let idToken: string | null = null;
+
+    try {
+      const client = await this.auth.getIdTokenClient(targetAudience);
+      const headers = await client.getRequestHeaders();
+      idToken = headers['Authorization']?.split('Bearer ')[1];
+      if (!idToken) throw new Error('Failed to obtain ID token for AI Cloud Function.');
+    } catch (error: any) {
+      console.error("DEBUG: Error obtaining ID token for AI Cloud Function:", error.message);
+      throw new Error(`Failed to obtain ID token for AI Cloud Function: ${error.message}`);
+    }
+
+    console.log("[BACKEND] translateVocabularyWithCloudFunction middle");
+      
+    try {
+      console.log("[BACKEND] translateVocabularyWithCloudFunction before await fetch");
+
+      
+      const response = await fetch(functionUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      console.log("[BACKEND] translateVocabularyWithCloudFunction after await fetch");
+      console.log("[BACKEND] Cloud Function HTTP Status:", response.status); // Log status
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("[BACKEND] Cloud Function returned !response.ok. Error body:", errorText); // Log error body if not OK
+        throw new Error(`Cloud Function call to ${functionName} failed: ${response.status} - ${errorText}`);
+      }
+
+      console.log("[BACKEND] translateVocabularyWithCloudFunction about to read response text.");
+      const rawResponseText = await response.text(); // <-- CRITICAL CHANGE: Read as text first!
+      console.log("[BACKEND] Raw response text from Cloud Function 'translateVocabulary':", rawResponseText); // Log raw text
+
+      try {
+          const rawCloudFunctionResponse = JSON.parse(rawResponseText); // <-- Now try to parse the text
+          console.log("[BACKEND] Parsed JSON from Cloud Function 'translateVocabulary':", JSON.stringify(rawCloudFunctionResponse, null, 2));
+          return rawCloudFunctionResponse as TranslateVocabularyCloudFunctionResult;
+      } catch (jsonParseError: any) {
+          console.error(`[BACKEND] JSON parsing failed for response from Cloud Function ${functionName}:`, jsonParseError);
+          // Re-throw with more context
+          throw new Error(`Invalid JSON response from Cloud Function ${functionName}: ${jsonParseError.message}. Raw text: "${rawResponseText.substring(0, 200)}..."`);
+      }
+
+    } catch (error) {
+      console.error(`Error calling Cloud Function ${functionName}:`, error);
+      // Re-throw to allow higher-level handling (e.g., in lookupAndTranslateVocabulary)
+      throw error;
+    }
+  }
+
+  /**
+   * Orchestrates the lookup, AI translation (via Cloud Function), and saving of vocabulary words.
+   * This method encapsulates the core logic for the Phrase Help feature.
+   * @param nativeText The input text phrase in the source language.
+   * @param sourceLanguage The source language code.
+   * @param targetLanguage The target language code.
+   * @returns A Promise resolving to an array of translated words for the frontend.
+   */
+  async lookupAndTranslateVocabulary(
+    nativeText: string,
+    sourceLanguage: string,
+    targetLanguage: string
+  ): Promise<Vocabulary[]> {
+    const originalWords = nativeText.split(/\s+/).filter(Boolean); // Split by spaces, filter empty
+    const uniqueNormalizedWords = new Set<string>();
+    const wordMap = new Map<string, string>(); // Map normalized word back to original casing
+
+    originalWords.forEach(word => {
+      const normalized = this.normalizeText(word); // Use class method
+      if (normalized) {
+        uniqueNormalizedWords.add(normalized);
+        if (!wordMap.has(normalized)) {
+          wordMap.set(normalized, word);
+        }
+      }
+    });
+
+    const wordsToProcess = Array.from(uniqueNormalizedWords);
+    const wordsToTranslateByAI: string[] = [];
+    const dbLookups: Map<string, Vocabulary> = new Map(); // Cache successful DB lookups
+
+    // 1. Look up words in the vocabulary database first
+    for (const word of wordsToProcess) {
+      const dbEntry = await this.getVocabularyEntrySpecific(word, sourceLanguage, targetLanguage);
+      if (dbEntry) {
+        dbLookups.set(word, dbEntry);
+      } else {
+        wordsToTranslateByAI.push(word);
+      }
+    }
+
+    // 2. Call AI Cloud Function for words not found in the database
+    let aiTranslatedResults: AiTranslatedWord[] = [];
+    if (wordsToTranslateByAI.length > 0) {
+      try {
+        const aiResponse = await this.translateVocabularyWithCloudFunction({
+          words: wordsToTranslateByAI,
+          sourceLanguage: sourceLanguage,
+          targetLanguage: targetLanguage,
+        });
+
+        if (aiResponse.success) {
+          aiTranslatedResults = aiResponse.translations;
+
+          // 3. Save new AI translations (that are valid) to the database
+          for (const aiResult of aiTranslatedResults) {
+            if (aiResult.translation !== "[undefined]") { // Only save valid translations
+              const vocabularyEntryToSave: Omit<Vocabulary, 'id'> = {
+                word: aiResult.word,
+                translation: aiResult.translation,
+                sourceLanguage: sourceLanguage,
+                targetLanguage: targetLanguage,
+                partOfSpeech: aiResult.partOfSpeech,
+                gender: aiResult.gender,
+              };
+              await this.saveVocabularyEntry(vocabularyEntryToSave);
+            }
+          }
+        } else {
+          console.warn("AI Cloud Function reported failure:", aiResponse.message);
+        }
+      } catch (aiError) {
+        console.error("Error calling AI Cloud Function or saving AI results:", aiError);
+        // If AI fails, words will naturally fallback to "[undefined]" in the final response.
+      }
+    }
+
+    // 4. Assemble the final response for the frontend, preserving original word order and casing
+    const finalTranslations: Vocabulary[] = [];
+    for (const originalWord of originalWords) {
+      const normalizedWord = this.normalizeText(originalWord);
+      let translationData: Vocabulary = {
+        word: originalWord,
+        translation: "[undefined]", // Default if not found or AI failed
+        partOfSpeech: null,
+        gender: null,
+      };
+
+      // Prioritize DB lookup results
+      if (dbLookups.has(normalizedWord)) {
+        const entry = dbLookups.get(normalizedWord)!;
+        translationData = {
+          word: originalWord,
+          translation: entry.translation,
+          partOfSpeech: entry.partOfSpeech,
+          gender: entry.gender,
+        };
+      } else {
+        // Fallback to AI results if not in DB
+        const aiEntry = aiTranslatedResults.find(t => this.normalizeText(t.word) === normalizedWord);
+        if (aiEntry) {
+          translationData = {
+            word: originalWord,
+            translation: aiEntry.translation,
+            partOfSpeech: aiEntry.partOfSpeech,
+            gender: aiEntry.gender,
+          };
+        }
+      }
+      finalTranslations.push(translationData);
+    }
+    return finalTranslations;
+  }
+
+  // --- Helper method: normalizeText (made a class method for consistency) ---
+  private normalizeText(text: string): string {
+    return text
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "") // Remove accents
+      .replace(/[.,!?¿'`;:()]/g, ""); // Remove punctuation
+  }
+
+  async chatAboutSentenceWithCloudFunction(
+    payload: ChatAboutSentenceCloudFunctionData
+  ): Promise<ChatAboutSentenceCloudFunctionResult> {
+    const functionName = "chatAboutSentence"; // Name of your new Cloud Function
+    const projectId = process.env.GCLOUD_PROJECT;
+    const region = process.env.FUNCTION_REGION; // Ensure this env var is set (e.g., us-central1)
+
+    if (!projectId || !region) {
+      throw new Error("Project ID or Function Region is not configured for Chat Cloud Function (for AI).");
+    }
+
+    const functionUrl = `https://${region}-${projectId}.cloudfunctions.net/${functionName}`;
+    const targetAudience = functionUrl;
+    let idToken: string | null = null;
+
+    try {
+      // Assuming this.auth is your Firebase Admin Auth instance or similar
+      // It's crucial for secure Cloud Function calls
+      const client = await this.auth.getIdTokenClient(targetAudience);
+      const headers = await client.getRequestHeaders();
+      idToken = headers["Authorization"]?.split("Bearer ")[1] || null; // Use null for clarity
+      if (!idToken) throw new Error("Failed to obtain ID token for Chat Cloud Function.");
+    } catch (error: any) {
+      console.error("DEBUG: Error obtaining ID token for Chat Cloud Function:", error.message);
+      throw new Error(`Failed to obtain ID token for Chat Cloud Function: ${error.message}`);
+    }
+
+    try {
+      console.log("[BACKEND] chatAboutSentenceWithCloudFunction before await fetch");
+      const response = await fetch(functionUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${idToken}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      console.log("[BACKEND] chatAboutSentenceWithCloudFunction after await fetch");
+      console.log("[BACKEND] Chat Cloud Function HTTP Status:", response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("[BACKEND] Chat Cloud Function returned !response.ok. Error body:", errorText);
+        throw new Error(`Chat Cloud Function call to ${functionName} failed: ${response.status} - ${errorText}`);
+      }
+
+      const rawCloudFunctionResponse: ChatAboutSentenceCloudFunctionResult =
+        await response.json();
+      console.log("[BACKEND] Raw response from Chat Cloud Function:", JSON.stringify(rawCloudFunctionResponse, null, 2));
+
+      // Basic validation of the Cloud Function's successful response
+      if (!rawCloudFunctionResponse.success || typeof rawCloudFunctionResponse.explanation !== "string") {
+          throw new Error("Invalid response structure from Chat Cloud Function.");
+      }
+
+      return rawCloudFunctionResponse;
+
+    } catch (error) {
+      console.error(`Error calling Chat Cloud Function ${functionName}:`, error);
+      throw error;
+    }
+}  
 
   // Progress methods
   async getProgress(userId: string, lessonId: string): Promise<Progress | undefined> { // IDs are strings

@@ -1,0 +1,70 @@
+/* frontend/src/components/PhraseChatDisplay.css */
+
+.phrase-chat-display {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  padding: 15px;
+  border-top: 1px solid var(--border-color); /* Assuming you have theme variables */
+}
+
+.chat-input-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.chat-question-textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--input-border-color);
+  border-radius: 5px;
+  resize: vertical; /* Allow vertical resizing */
+  font-family: inherit; /* Use font from parent */
+  font-size: 1rem;
+}
+
+.chat-send-button {
+  padding: 10px 15px;
+  background-color: var(--primary-button-background); /* Example color */
+  color: var(--primary-button-text); /* Example color */
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background-color 0.2s ease;
+}
+
+.chat-send-button:hover:not(:disabled) {
+  background-color: var(--primary-button-hover-background);
+}
+
+.chat-send-button:disabled {
+  background-color: var(--disabled-button-background);
+  cursor: not-allowed;
+}
+
+.chat-error-message {
+  color: var(--error-text-color); /* Example color */
+  background-color: var(--error-background); /* Example color */
+  padding: 10px;
+  border-radius: 5px;
+}
+
+.chat-explanation-section {
+  background-color: var(--background-light); /* Example color */
+  padding: 15px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  max-height: 300px; /* Limit height */
+  overflow-y: auto; /* Scroll if content overflows */
+}
+
+.chat-explanation-section h3 {
+  margin-top: 0;
+  color: var(--heading-color); /* Example color */
+}
+
+.chat-explanation-section p {
+  white-space: pre-wrap; /* Preserves whitespace and line breaks from AI */
+}

@@ -1,39 +1,81 @@
+// client/src/lib/lessonData.ts
+
 import { useQuery } from "@tanstack/react-query";
-import { Lesson, Exchange } from "@shared/schema";
+import type { Lesson as LessonType, Topic, LessonWithTopic, Exchange } from "@shared/schema";
 import { API_BASE_URL } from '../config';
 
-export const useLessons = (topicId: number) => {
-  return useQuery({
+export const useLessons = (topicId: string) => {
+  return useQuery<LessonType[], Error>({ 
     queryKey: ['/api/lessons', topicId],
     queryFn: async ({ queryKey }) => {
       const response = await fetch(`${API_BASE_URL}/api/lessons?topicId=${queryKey[1]}`);
       if (!response.ok) {
         throw new Error('Failed to fetch lessons');
       }
-      return response.json() as Promise<Lesson[]>;
+      const data = await response.json();
+      return data as LessonType[]; 
     },
-    enabled: !!topicId
+    enabled: !!topicId,
+    gcTime: 10 * 60 * 1000,
+    staleTime: 5 * 60 * 1000,
   });
 };
 
-export const useLesson = (id: number) => {
-  return useQuery({
+export const useLesson = (id: string) => {
+  return useQuery<LessonWithTopic, Error>({ // Specify generic type for useQuery
     queryKey: [`${API_BASE_URL}/api/lessons/${id}`],
     queryFn: async ({ queryKey }) => {
-      const response = await fetch(queryKey[0]);
-      if (!response.ok) {
-        throw new Error('Failed to fetch lesson');
-      }
-      const lesson = await response.json() as Lesson;
-      
-      // Parse the exchanges JSON if it's a string
-      if (typeof lesson.exchanges === 'string') {
-        lesson.exchanges = JSON.parse(lesson.exchanges);
+      const lessonResponse = await fetch(queryKey[0] as string); 
+
+     if (lessonResponse.status === 304) {
+        throw new Error("Lesson data not modified. Re-using cached data or no new data available.");
       }
       
-      return lesson;
+      if (!lessonResponse.ok) {
+        // This captures 4xx and 5xx errors
+        const errorText = await lessonResponse.text();
+        throw new Error(`Failed to load lesson: ${lessonResponse.status} - ${errorText || lessonResponse.statusText}`);
+      }
+
+      // Parse lesson data
+      let lessonData: LessonType;
+      try {
+        lessonData = await lessonResponse.json();
+      } catch (jsonError) {
+        console.error("JSON parsing failed.");
+        // You can throw a new error with more context, or the original error
+        throw new Error(`Failed to parse lesson data as JSON. Error: ${jsonError}.`);
+      }
+
+      // const lessonData: LessonType = await lessonResponse.json(); 
+      console.log("Data received from server:", lessonData);
+ 
+      if (!lessonData.topicId) {
+        throw new Error("Lesson data is missing topicId.");
+      }
+
+      // Fetch Topic data using lesson.topicId
+      const topicResponse = await fetch(`${API_BASE_URL}/api/topics/${lessonData.topicId}`);
+      if (!topicResponse.ok) {
+        throw new Error(`Failed to fetch topic for lesson: ${topicResponse.statusText}`);
+      }
+      const topicData: Topic = await topicResponse.json();
+
+      if (typeof lessonData.exchanges === 'string') {
+        (lessonData as any).exchanges = JSON.parse(lessonData.exchanges); // Cast to any to allow reassignment if type is strict
+      }
+
+      // Combine them into the new LessonWithTopic type
+      const combinedData: LessonWithTopic = {
+        ...lessonData,
+        topicDetails: topicData,
+      };
+
+      return combinedData;
     },
-    enabled: !!id
+    enabled: !!id,
+    gcTime: 10 * 60 * 1000,
+    staleTime: 5 * 60 * 1000,
   });
 };
 
@@ -70,99 +112,4 @@ export const generateNewFillInTheBlanks = (exchanges: Exchange[]): Exchange[] =>
   });
   
   return newExchanges;
-};
-
-export interface UserAnswer {
-  exchangeId: string;
-  blankIndex: number;
-  answer: string;
-  isCorrect: boolean;
-  isAlmostCorrect?: boolean;
-}
-
-// Sample data for use during development
-export const sampleLessonData = {
-  id: 1,
-  topicId: 2,
-  title: "Finding Your Way Around",
-  context: "You're in Madrid and need to find the nearest subway station. You approach a local person to ask for directions.",
-  exchanges: [
-    {
-      id: "ex1",
-      speaker: "user",
-      speakerName: "You",
-      nativeText: "Excuse me, could you tell me where the nearest subway station is?",
-      translatedText: "Disculpe, ¿podría decirme dónde está la estación de metro más cercana?",
-      blanks: [
-        { index: 2, correctAnswer: "decirme" },
-        { index: 7, correctAnswer: "metro" }
-      ]
-    },
-    {
-      id: "ex2",
-      speaker: "other",
-      speakerName: "Local person",
-      nativeText: "Of course. The nearest subway station is two blocks away. Walk straight ahead and then turn right at the pharmacy.",
-      translatedText: "Claro. La estación de metro más cercana está a dos manzanas. Camine recto y luego gire a la derecha en la farmacia.",
-      blanks: [
-        { index: 5, correctAnswer: "cercana" },
-        { index: 13, correctAnswer: "derecha" }
-      ]
-    },
-    {
-      id: "ex3",
-      speaker: "user",
-      speakerName: "You",
-      nativeText: "Is it the Sol station or Callao station?",
-      translatedText: "¿Es la estación Sol o la estación Callao?",
-      blanks: [
-        { index: 2, correctAnswer: "estación" },
-        { index: 5, correctAnswer: "estación" }
-      ]
-    },
-    {
-      id: "ex4",
-      speaker: "other",
-      speakerName: "Local person",
-      nativeText: "It's Sol station. It's very central and many metro lines pass through there.",
-      translatedText: "Es la estación Sol. Es muy céntrica y muchas líneas de metro pasan por allí.",
-      blanks: [
-        { index: 3, correctAnswer: "Sol" },
-        { index: 9, correctAnswer: "pasan" }
-      ]
-    },
-    {
-      id: "ex5",
-      speaker: "user",
-      speakerName: "You",
-      nativeText: "How long does it take to walk there?",
-      translatedText: "¿Cuánto tiempo se tarda en caminar hasta allí?",
-      blanks: [
-        { index: 1, correctAnswer: "tiempo" },
-        { index: 5, correctAnswer: "caminar" }
-      ]
-    },
-    {
-      id: "ex6",
-      speaker: "other",
-      speakerName: "Local person",
-      nativeText: "About 5 minutes, not long at all.",
-      translatedText: "Unos 5 minutos, no es mucho tiempo.",
-      blanks: [
-        { index: 1, correctAnswer: "minutos" },
-        { index: 5, correctAnswer: "tiempo" }
-      ]
-    },
-    {
-      id: "ex7",
-      speaker: "user",
-      speakerName: "You",
-      nativeText: "Thank you very much for your help!",
-      translatedText: "¡Muchas gracias por su ayuda!",
-      blanks: [
-        { index: 0, correctAnswer: "Muchas" },
-        { index: 3, correctAnswer: "ayuda" }
-      ]
-    }
-  ] as Exchange[]
 };

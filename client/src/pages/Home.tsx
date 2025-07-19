@@ -1,11 +1,11 @@
 // Home.tsx
 
-import { useLanguage } from '@/lib/languages';
-import { useState } from 'react';
+import { useLanguage, LanguageContext } from '@/lib/languageContext';
 import { useTopics, getCategorizedTopics } from '@/lib/topics';
 import TopicSelection from '@/components/TopicSelection';
 import TopicPreview from '@/components/TopicPreview';
-import { Topic } from '@shared/schema';
+import type { Topic } from '@shared/schema';
+import { useState, useContext, useEffect } from 'react';
 
 const Home = () => {
   console.log("Rendering Home component.");
@@ -26,14 +26,22 @@ const Home = () => {
     getFormattedLanguage      // This helper function is now provided by the context
   } = useLanguage();
 
+  const rawContextValue = useContext(LanguageContext);
+  console.log('Home.tsx: Raw context value from useContext directly:', rawContextValue);
+
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
 
-  // --- ADD THESE CONSOLE LOGS ---
   console.log('Home.tsx: isLoadingLanguages', isLoadingLanguages);
   console.log('Home.tsx: languagesError', languagesError);
   console.log('Home.tsx: currentLanguage (object)', currentLanguage);
   console.log('Home.tsx: currentLanguage.code (string)', currentLanguage?.code);
-  // --- END CONSOLE LOGS ---
+
+  useEffect(() => {
+    console.log("Home.tsx useEffect: isLoadingLanguages changed to", isLoadingLanguages);
+    if (!isLoadingLanguages && !languagesError && allLanguages && allLanguages.length > 0) {
+      console.log("Home.tsx useEffect: Languages are confirmed loaded and ready!");
+    }
+  }, [isLoadingLanguages, languagesError, allLanguages]);
 
   // Pass the currentLanguageCode to useTopics.
   // We need to ensure currentLanguageCode is valid before useTopics fires.
@@ -43,10 +51,8 @@ const Home = () => {
   
   const { data: topics, isLoading: isTopicsLoading } = useTopics(languageCodeForTopics);
 
-  // --- ADD THESE CONSOLE LOGS ---
   console.log('Home.tsx: isTopicsLoading', isTopicsLoading);
   console.log('Home.tsx: topics data', topics);
-  // --- END CONSOLE LOGS ---
   
   const categorizedTopics = topics
     ? getCategorizedTopics(topics)
@@ -78,7 +84,6 @@ const Home = () => {
   // and currentLanguageCode is set.
 
     console.log('home.tsx 1: about to run setCurrentLanguageCode')
-
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
