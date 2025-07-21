@@ -190,7 +190,12 @@ const LESSONPROMPT_4 = [
   " to the 'correctAnswer', but NOT identical",
   " and they should not be considered an accepted equivalent",
   " words when translated.",
-  "    * Examples:",
+  " Pay special attention to the incorrectAnswers field, ",
+  " which must always be a JSON array of strings, ",
+  " even if it contains only one item. ",
+  " Do not include any other text or conversational elements ",
+  " in your response, only the JSON. ",
+  "    * Examples for Incorrect Answers:",
   "      - Nouns: if 'banana' is correct, incorrect could be ",
   " 'bandana', 'manzana', 'platano'",
   " or the plural version versus the singular version.",
@@ -244,7 +249,7 @@ const LESSONPROMPT_4 = [
   "{\"index\":4,\"correctAnswer\":\"tú\",",
   " \"incorrectAnswers\":[\"usted\", \"vos\", \"yo\"]}",
   "]",
-  "}", // End of ex2
+  "},", // End of ex2
   "]}", // End of exchanges array
 ].join("\n");
 
@@ -286,7 +291,7 @@ const CHAT_PROMPT_INTRO = [
   "",
 ].join("\n");
 
-const CHAT_PROMPT_QUESTION_PREFIX = "Here is the user's question: ";
+const CHAT_PROMPT_QUESTION_PREFIX = "Here is the user question: ";
 
 const CHAT_PROMPT_GUIDANCE = [
   "Please provide a clear, concise, and helpful explanation. ",
@@ -294,6 +299,15 @@ const CHAT_PROMPT_GUIDANCE = [
   "Avoid conversational filler. If you cannot answer based on the provided ",
   "context, state that clearly.",
 ].join("\n");
+
+
+// Defines allowed origins for CORS.
+const allowedOrigins = [
+  "http://localhost:5173",
+  "[https://storage.googleapis.com/lang2lang-dev_frontend](https://storage.googleapis.com/lang2lang-dev_frontend)",
+  "[https://storage.googleapis.com](https://storage.googleapis.com)",
+  // Add other production domains if applicable
+];
 
 // --- Cloud Function ---
 /**
@@ -310,6 +324,22 @@ exports.createLesson = functions
   .https.onRequest(
     {secrets: [geminiApiKey]},
     async (req: Request, res: Response) => {
+      const origin = req.headers.origin;
+      if (origin && allowedOrigins.includes(origin)) {
+        res.setHeader("Access-Control-Allow-Origin", origin);
+      }
+      res.setHeader("Access-Control-Allow-Methods",
+        "GET, POST, OPTIONS, PUT, DELETE");
+      res.setHeader("Access-Control-Allow-Headers",
+        "Content-Type, Authorization");
+      res.setHeader("Access-Control-Allow-Credentials", "true");
+      res.setHeader("Access-Control-Max-Age", "3600");
+
+      // Handle preflight OPTIONS request
+      if (req.method === "OPTIONS") {
+        res.status(204).send("");
+        return;
+      }
       const {topicId, topicTitle, topicLanguage, topicLevel} = req.body;
 
       if (!topicId || !topicTitle) {
@@ -374,7 +404,8 @@ exports.createLesson = functions
         let lessonData: LessonDataFromAI;
         try {
           const cleanText = text.replace(/```json\n|```/g, "").trim();
-          lessonData = JSON.parse(cleanText);
+          const fixedJsonText = fixAIJsonResponse(cleanText);
+          lessonData = JSON.parse(fixedJsonText);
 
           if (
             !lessonData ||
@@ -438,24 +469,46 @@ exports.createLesson = functions
       }
     });
 
+/**
+ * Attempts to fix known JSON formatting issues from AI responses.
+ * Specifically, it fixes cases where 'incorrectAnswers'
+ * might be a comma-separated string list instead of a JSON array.
+ * @param {string} rawJsonString - The raw string response from the AI.
+ * @return {string} A string w common JSON errors fixed as necessary.
+ */
+function fixAIJsonResponse(rawJsonString: string): string {
+  // Pattern to find: "incorrectAnswers": "val1", "val2", "val3"
+  // It looks for "incorrectAnswers": followed by a string in quotes,
+  // and then optionally more quoted strings separated by ", "
+  // until a non-quote/non-comma/non-space char or end of line.
+  const regex = /("incorrectAnswers":\s*)("[^"]*"(?:,\s*"[^"]*")*)(?=[,}\n])/g;
+  const fixedString = rawJsonString.replace(regex, (match, p1, p2) => {
+    return `${p1}[${p2}]`;
+  });
+
+  return fixedString;
+}
 
 exports.translateVocabulary = functions
   .https.onRequest(
     {secrets: [geminiApiKey]},
     async (req: Request, res: Response) => {
-      // 1. Set CORS headers (essential for browser-based frontends)
-      // IMPORTANT: In production, change '*' to your specific frontend URL(s)
-      // for security
-      res.set("Access-Control-Allow-Origin", "*");
+      const origin = req.headers.origin;
+      if (origin && allowedOrigins.includes(origin)) {
+        res.setHeader("Access-Control-Allow-Origin", origin);
+      }
+      res.setHeader("Access-Control-Allow-Methods",
+        "GET, POST, OPTIONS, PUT, DELETE");
+      res.setHeader("Access-Control-Allow-Headers",
+        "Content-Type, Authorization");
+      res.setHeader("Access-Control-Allow-Credentials", "true");
+      res.setHeader("Access-Control-Max-Age", "3600");
+
       if (req.method === "OPTIONS") {
-        res.set("Access-Control-Allow-Methods", "POST");
-        res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-        res.set("Access-Control-Max-Age", "3600");
         res.status(204).send("");
         return;
       }
 
-      // 2. Ensure it's a POST request
       if (req.method !== "POST") {
         res.status(405).json({
           success: false,
@@ -600,17 +653,23 @@ exports.chatAboutSentence = functions
   .https.onRequest(
     {secrets: [geminiApiKey]},
     async (req: Request, res: Response) => {
-      // 1. Set CORS headers
-      res.set("Access-Control-Allow-Origin", "*");
+      const origin = req.headers.origin;
+      if (origin && allowedOrigins.includes(origin)) {
+        res.setHeader("Access-Control-Allow-Origin", origin);
+      }
+      res.setHeader("Access-Control-Allow-Methods",
+        "GET, POST, OPTIONS, PUT, DELETE");
+      res.setHeader("Access-Control-Allow-Headers",
+        "Content-Type, Authorization");
+      res.setHeader("Access-Control-Allow-Credentials", "true");
+      res.setHeader("Access-Control-Max-Age", "3600");
+
       if (req.method === "OPTIONS") {
-        res.set("Access-Control-Allow-Methods", "POST");
-        res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-        res.set("Access-Control-Max-Age", "3600");
         res.status(204).send("");
         return;
       }
 
-      // 2. Ensure it's a POST request
+      // 2. Ensure it is a POST request
       if (req.method !== "POST") {
         res.status(405).json({
           success: false,

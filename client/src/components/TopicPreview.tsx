@@ -1,6 +1,7 @@
 import { useLocation } from 'wouter';
 import type { Topic } from '@shared/schema';
-import { API_BASE_URL } from '@/config'; // Import API_BASE_URL from your config
+import { callApiWithAuth } from '@/utils/auth'
+import { useAuth } from '@/lib/authContext';
 
 interface TopicPreviewProps {
   topic: Topic | null;
@@ -10,6 +11,7 @@ interface TopicPreviewProps {
 const TopicPreview: React.FC<TopicPreviewProps> = ({ topic, isLoading }) => {
   console.log("Rendering TopicPreview component.");
   const [_, setLocation] = useLocation();
+  const { isAuthenticated } = useAuth(); 
 
   if (isLoading) {
     return (
@@ -69,7 +71,10 @@ const TopicPreview: React.FC<TopicPreviewProps> = ({ topic, isLoading }) => {
 
     try {
       // Step 1: Call the backend to get the next available lesson ID for this topic
-      const response = await fetch(`${API_BASE_URL}/api/topics/${topic.id}/next-lesson`);
+      const fullUrl = `/api/topics/${topic.id}/next-lesson`;
+      const response = await callApiWithAuth(fullUrl, {
+       method: 'GET',
+     });
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -77,7 +82,7 @@ const TopicPreview: React.FC<TopicPreviewProps> = ({ topic, isLoading }) => {
       }
 
       const data = await response.json();
-      const lessonId = data.lessonId; // This is the actual Firestore document ID (e.g., 3EkE8QGELIxYQi9Ci9UM)
+      const lessonId = data.lessonId;
 
       if (lessonId) {
         // Step 2: Navigate to the lesson page using the received lessonId
@@ -111,7 +116,7 @@ const TopicPreview: React.FC<TopicPreviewProps> = ({ topic, isLoading }) => {
                 {tag}
               </span>
             ))}
-            <span className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">14 essential exchanges</span>
+            <span className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">10 essential exchanges</span>
           </div>
         </div>
 
@@ -119,13 +124,10 @@ const TopicPreview: React.FC<TopicPreviewProps> = ({ topic, isLoading }) => {
           <button
             onClick={startLesson} // This button calls the async startLesson function
             className="inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+            disabled={!isAuthenticated}
           >
             <span className="material-icons mr-1 text-sm">play_arrow</span>
             Start Lesson
-          </button>
-          <button className="inline-flex justify-center items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
-            <span className="material-icons mr-1 text-sm">star_outline</span>
-            Save for Later
           </button>
         </div>
       </div>

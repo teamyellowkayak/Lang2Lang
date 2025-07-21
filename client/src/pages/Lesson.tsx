@@ -7,7 +7,8 @@ import LessonNavigation from '@/components/LessonNavigation';
 import LessonContent from '@/components/LessonContent';
 import type { LessonWithTopic as LessonType, Exchange, Vocabulary } from '@shared/schema';
 import { useLanguage } from '@/lib/languageContext';
-import { API_BASE_URL } from '../config';
+import { callApiWithAuth } from '@/utils/auth';
+import { useAuth } from '@/lib/authContext';
 
 const Lesson = () => {
   // --- ALL HOOKS MUST BE DECLARED AT THE TOP LEVEL AND UNCONDITIONALLY ---
@@ -21,6 +22,8 @@ const Lesson = () => {
   const { data: lesson, isLoading, error } = useLesson(lessonId);
   const [currentExchangeIndex, setCurrentExchangeIndex] = useState(0);
 
+  const { isAuthenticated } = useAuth();
+  
   // STATE FOR PHRASE HELP PANEL
   const [phraseHelpInput, setPhraseHelpInput] = useState<string>('');
   const [translatedWords, setTranslatedWords] = useState<Vocabulary[]>([]);
@@ -41,6 +44,9 @@ const Lesson = () => {
 
   const totalSteps = exchanges.length;
   const currentExchange = exchanges[currentExchangeIndex];
+  const isLastStep = currentExchangeIndex === totalSteps - 1 && totalSteps > 0;
+
+    console.log("Steps: ",currentExchangeIndex.toString()," of ",(totalSteps-1).toString(),isLastStep.toString());
 
   // Reset phraseFromHint, phraseHelpInput, and translatedWords when moving to a new lesson or exchange
   // This useEffect will run on every render, but its dependencies make it trigger only when needed.
@@ -65,7 +71,7 @@ const Lesson = () => {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/vocabulary-lookup`, {
+      const response = await callApiWithAuth(`/api/vocabulary-lookup`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -117,7 +123,7 @@ const Lesson = () => {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/chat-about-sentence`, {
+      const response = await callApiWithAuth(`/api/chat-about-sentence`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -152,7 +158,7 @@ const Lesson = () => {
   const handleLessonCompletion = useCallback(async () => { // Make handleLessonCompletion useCallback
     console.log(`Frontend: Attempting to mark lesson ${lessonId} as done`);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/lessons/${lessonId}/status`, {
+      const response = await callApiWithAuth(`/api/lessons/${lessonId}/status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -173,13 +179,13 @@ const Lesson = () => {
     setLocation('/');
   }, [lessonId, setLocation]);
 
-  const handleComplete = useCallback(() => { // Make handleComplete useCallback to prevent re-creation
+  const handleNextStep = useCallback(() => { // Make handleComplete (now handleNextStep) useCallback to prevent re-creation
     if (!lesson || !Array.isArray(lesson.exchanges)) return;
 
     if (currentExchangeIndex < lesson.exchanges.length - 1) {
-      setCurrentExchangeIndex(currentExchangeIndex + 1);
+     setCurrentExchangeIndex(currentExchangeIndex + 1);
     } else {
-      handleLessonCompletion();
+      // handleLessonCompletion();
     }
   }, [lesson, currentExchangeIndex, handleLessonCompletion]); // Add handleLessonCompletion to deps
 
@@ -271,14 +277,15 @@ const Lesson = () => {
           currentStep={currentExchangeIndex + 1}
           totalSteps={totalSteps}
           onNavigate={handleNavigation}
-          onDone={handleComplete}
+          onDone={handleLessonCompletion}
         />
 
         <LessonContent
           lesson={lesson as LessonType}
           currentExchangeIndex={currentExchangeIndex}
+          isLastStep={isLastStep}
           onPrevious={handlePrevious}
-          onComplete={handleComplete}
+          onCompleteStep={handleNextStep}
           onHintClick={handleHintClick}
           hintText={currentExchange?.nativeText || ''}
           phraseHelpInput={phraseHelpInput}

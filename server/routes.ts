@@ -11,6 +11,83 @@ import {
  type Vocabulary
 } from "@shared/schema";
 import { z } from "zod";
+import * as dotenv from 'dotenv';
+
+dotenv.config();
+
+/*
+function authenticateLocalPassword(req: Request, res: Response, next: NextFunction) {
+  if (req.method === 'OPTIONS') {
+    // For preflight requests, the browser is just asking for permission.
+    // It does NOT send custom headers yet. Allow it to pass through.
+    return next();
+  }
+  const incomingPassword = req.headers["x-access-password"] as string;
+  const expectedPassword = process.env.SHARED_ACCESS_PASSWORD;
+
+  if (!expectedPassword) {
+    console.error("SHARED_ACCESS_PASSWORD is not set in .env!");
+    return res.status(500).json({ success: false, message: "Server configuration error." });
+  }
+  console.log(incomingPassword, " ");
+  if (incomingPassword && incomingPassword === expectedPassword) {
+    next();
+  } else {
+    console.warn("Unauthorized local backend access attempt: Invalid password.");
+    res.status(401).json({ success: false, message: "Unauthorized" });
+  }
+}
+*/
+
+
+// DELETE this section and replace with the one above-------------------
+function authenticateLocalPassword(req: Request, res: Response, next: NextFunction) {
+  const requestId = Math.random().toString(36).substring(2, 8); // Unique ID for this request in logs
+  console.log(`\n--- BACKEND AUTH MIDDLEWARE START (${requestId}) ---`);
+  console.log(`  Method: ${req.method}, URL: ${req.originalUrl}`);
+  console.log(`  Timestamp: ${new Date().toISOString()}`);
+
+  if (req.method === 'OPTIONS') {
+    console.log(`  [${requestId}] Handling OPTIONS (Preflight). Bypassing authentication.`);
+    // Crucially, you might need to explicitly set CORS headers for OPTIONS requests
+    // if your main CORS middleware isn't catching them before this,
+    // or if the browser expects specific headers in the preflight response.
+    // However, for typical setups, the main CORS middleware should handle it.
+    // If you're using 'cors' npm package, ensure it's placed *before* this middleware.
+    // Example (only if needed and your main CORS setup is insufficient):
+    // res.header('Access-Control-Allow-Origin', '*'); // Or your specific frontend origin
+    // res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+    // res.header('Access-Control-Allow-Headers', 'Content-Type,X-Access-Password'); // Crucial for custom headers
+    // res.header('Access-Control-Max-Age', '86400'); // Cache preflight for 24 hours
+    return next(); // Proceed to the next middleware (likely your main CORS middleware)
+  }
+
+  const incomingPassword = req.headers["x-access-password"] as string;
+  const expectedPassword = process.env.SHARED_ACCESS_PASSWORD;
+
+  if (!expectedPassword) {
+    console.error(`  [${requestId}] ERROR: SHARED_ACCESS_PASSWORD is NOT set in .env! Returning 500.`);
+    return res.status(500).json({ success: false, message: "Server configuration error: Password not set." });
+  }
+
+  console.log(`  [${requestId}] Processing actual request. Password check:`);
+  console.log(`    Incoming (X-Access-Password): "${incomingPassword}"`); // Log the full string
+  console.log(`    Are they equal? ${incomingPassword === expectedPassword}`);
+  console.log(`    Full Request Headers: ${JSON.stringify(req.headers, null, 2)}`); // Dump all headers
+
+  if (incomingPassword && incomingPassword === expectedPassword) {
+    console.log(`  [${requestId}] AUTH SUCCESS: Passwords match. Calling next().`);
+    next();
+  } else {
+    console.warn(`  [${requestId}] AUTH FAILED: Invalid or missing password. Returning 401.`);
+    res.status(401).json({ success: false, message: "Unauthorized: Invalid or missing access password." });
+  }
+  console.log(`--- BACKEND AUTH MIDDLEWARE END (${requestId}) ---`);
+}
+
+
+
+
 
 const vocabularyLookupSchema = z.object({
   nativeText: z.string().min(1, "Native text cannot be empty"),
@@ -20,10 +97,17 @@ const vocabularyLookupSchema = z.object({
 
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Seed initial data
-
+  // All routes defined below this line that have an "/api" prefix
+  // will first pass through this authentication check.
+  app.use("/api", authenticateLocalPassword);
+  
   // Language routes
   app.get("/api/languages", async (req: Request, res: Response) => {
+      // DELETE this 4 lines-------------------
+      console.log("--- TEST HEADERS ROUTE ---");
+      console.log("Headers received:", JSON.stringify(req.headers, null, 2));
+      console.log("X-Access-Password header:", req.headers["x-access-password"]);
+
     try {
       const languages = await storage.getLanguages();
       res.json(languages);
@@ -32,6 +116,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch languages" });
     }
   });
+
+// server/routes.ts or server/index.ts  // DELETE this section of 8 lines-------------------
+app.get("/api/test-headers", (req: Request, res: Response) => {
+  console.log("--- TEST HEADERS ROUTE ---");
+  console.log("Headers received:", JSON.stringify(req.headers, null, 2));
+  console.log("X-Access-Password header:", req.headers["x-access-password"]);
+  res.json({ message: "Headers checked", receivedHeaders: req.headers });
+});
 
   app.get("/api/languages/:code", async (req: Request, res: Response) => {
     try {

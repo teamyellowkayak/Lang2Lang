@@ -2,30 +2,34 @@
 
 import { useQuery } from "@tanstack/react-query";
 import type { Lesson as LessonType, Topic, LessonWithTopic, Exchange } from "@shared/schema";
-import { API_BASE_URL } from '../config';
+import { callApiWithAuth } from '@/utils/auth';
+import { useAuth } from '@/lib/authContext';
 
 export const useLessons = (topicId: string) => {
+  const { isAuthenticated } = useAuth();
   return useQuery<LessonType[], Error>({ 
     queryKey: ['/api/lessons', topicId],
     queryFn: async ({ queryKey }) => {
-      const response = await fetch(`${API_BASE_URL}/api/lessons?topicId=${queryKey[1]}`);
+      const response = await callApiWithAuth(`/api/lessons?topicId=${queryKey[1]}`);
       if (!response.ok) {
         throw new Error('Failed to fetch lessons');
       }
       const data = await response.json();
       return data as LessonType[]; 
     },
-    enabled: !!topicId,
+    enabled: !!topicId && isAuthenticated,
     gcTime: 10 * 60 * 1000,
     staleTime: 5 * 60 * 1000,
   });
 };
 
 export const useLesson = (id: string) => {
+  const { isAuthenticated } = useAuth();
   return useQuery<LessonWithTopic, Error>({ // Specify generic type for useQuery
-    queryKey: [`${API_BASE_URL}/api/lessons/${id}`],
+    queryKey: ['/api/lessons', id],
     queryFn: async ({ queryKey }) => {
-      const lessonResponse = await fetch(queryKey[0] as string); 
+      const lessonId = queryKey[1] as string;
+      const lessonResponse = await callApiWithAuth(`/api/lessons/${lessonId}`);
 
      if (lessonResponse.status === 304) {
         throw new Error("Lesson data not modified. Re-using cached data or no new data available.");
@@ -55,7 +59,7 @@ export const useLesson = (id: string) => {
       }
 
       // Fetch Topic data using lesson.topicId
-      const topicResponse = await fetch(`${API_BASE_URL}/api/topics/${lessonData.topicId}`);
+      const topicResponse = await callApiWithAuth(`/api/topics/${lessonData.topicId}`);
       if (!topicResponse.ok) {
         throw new Error(`Failed to fetch topic for lesson: ${topicResponse.statusText}`);
       }
@@ -73,7 +77,7 @@ export const useLesson = (id: string) => {
 
       return combinedData;
     },
-    enabled: !!id,
+    enabled: !!id && isAuthenticated,
     gcTime: 10 * 60 * 1000,
     staleTime: 5 * 60 * 1000,
   });

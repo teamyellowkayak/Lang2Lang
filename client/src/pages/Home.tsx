@@ -6,24 +6,22 @@ import TopicSelection from '@/components/TopicSelection';
 import TopicPreview from '@/components/TopicPreview';
 import type { Topic } from '@shared/schema';
 import { useState, useContext, useEffect } from 'react';
+import { useAuth } from '@/lib/authContext';
 
 const Home = () => {
   console.log("Rendering Home component.");
+
+  // Access the authentication status using the custom useAuth hook
+  const { isAuthenticated } = useAuth();
   
   // Destructure the values provided by LanguageContext through useLanguage hook
-  // You now get:
-  // - currentLanguageCode (string): The 'code' of the current language (e.g., "en2es")
-  // - setCurrentLanguageCode (function): To change the current language
-  // - allLanguages (Language[]): The array of all fetched languages
-  // - isLoadingLanguages (boolean): Whether the languages are still loading
-  // - languagesError (Error | null): Any error during language fetching
   const {
-    currentLanguage,          // This is the Language object (or null)
-    setCurrentLanguageCode,   // This is the function to update the language by its code
-    allLanguages,             // This is the array of all fetched languages
-    isLoadingLanguages,       // Boolean indicating if languages are still being fetched
-    languagesError,           // Error object if fetching failed
-    getFormattedLanguage      // This helper function is now provided by the context
+    currentLanguage,
+    setCurrentLanguageCode,
+    allLanguages,
+    isLoadingLanguages,
+    languagesError,
+    getFormattedLanguage
   } = useLanguage();
 
   const rawContextValue = useContext(LanguageContext);
@@ -35,6 +33,7 @@ const Home = () => {
   console.log('Home.tsx: languagesError', languagesError);
   console.log('Home.tsx: currentLanguage (object)', currentLanguage);
   console.log('Home.tsx: currentLanguage.code (string)', currentLanguage?.code);
+  console.log('Home.tsx: isAuthenticated', isAuthenticated);
 
   useEffect(() => {
     console.log("Home.tsx useEffect: isLoadingLanguages changed to", isLoadingLanguages);
@@ -43,17 +42,16 @@ const Home = () => {
     }
   }, [isLoadingLanguages, languagesError, allLanguages]);
 
-  // Pass the currentLanguageCode to useTopics.
-  // We need to ensure currentLanguageCode is valid before useTopics fires.
-  // useTopics will probably also have its own isLoading.
-  // Provide a default fallback
-  const languageCodeForTopics = currentLanguage?.code || "es"; 
-  
-  const { data: topics, isLoading: isTopicsLoading } = useTopics(languageCodeForTopics);
+  const languageCodeForTopics = currentLanguage?.code || "es";
+
+  // Use React Query's `enabled` option to conditionally fetch topics
+  const { data: topics, isLoading: isTopicsLoading } = useTopics(languageCodeForTopics, {
+    enabled: isAuthenticated && !isLoadingLanguages && !languagesError && !!currentLanguage?.code
+  });
 
   console.log('Home.tsx: isTopicsLoading', isTopicsLoading);
   console.log('Home.tsx: topics data', topics);
-  
+
   const categorizedTopics = topics
     ? getCategorizedTopics(topics)
     : [];
@@ -62,7 +60,17 @@ const Home = () => {
     setSelectedTopic(topic);
   };
 
-  // 1. Handle Language Loading State FIRST
+  // 1. Handle overall application loading states first
+  if (!isAuthenticated) {
+    // This state should ideally be handled by App.tsx rendering PasswordGate
+    // but as a fallback/clarification, if Home renders without auth, show message
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center">
+        Authentication required to view content.
+      </div>
+    );
+  }
+
   if (isLoadingLanguages) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center">
@@ -81,47 +89,32 @@ const Home = () => {
   }
 
   // At this point, languages are loaded (allLanguages is available)
-  // and currentLanguageCode is set.
+  // currentLanguageCode is set, AND isAuthenticated is true.
 
-    console.log('home.tsx 1: about to run setCurrentLanguageCode')
+  // 3. Handle Topics Loading State
+  // This state will only be reached if isAuthenticated is true
+  if (isTopicsLoading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center">
+        Loading topics...
+      </div>
+    );
+  }
+
+  console.log('home.tsx 1: about to run setCurrentLanguageCode');
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Optional: Add a language selector here if you want users to change the language */}
-      {/*
-      <div className="mb-4">
-        <label htmlFor="language-select" className="block text-sm font-medium text-gray-700">
-          Select Language:
-        </label>
-        <select
-          id="language-select"
-          value={currentLanguage?.code || ''} // <--- CORRECTED LINE HERE
-          onChange={(e) => setCurrentLanguageCode(e.target.value)}
-          className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-        >
-          {allLanguages.map(lang => (
-            <option key={lang.id} value={lang.code}>
-              {lang.name} ({lang.nativeName})
-            </option>
-          ))}
-        </select>
-      </div>
-      */}
-
       <div className="flex flex-col md:flex-row gap-8">
         <TopicSelection
           categories={categorizedTopics}
           onTopicSelect={handleTopicSelect}
           selectedTopic={selectedTopic}
-          // Pass the combined loading state if useTopics depends on currentLanguageCode
-          isLoading={isTopicsLoading || !currentLanguage?.code} 
-          // You might need to pass currentLanguageCode to TopicSelection if it needs to display it
-          // currentLanguageCode={currentLanguage?.code}
+          isLoading={isTopicsLoading}
         />
 
         <TopicPreview
           topic={selectedTopic}
-          // Combine loading states: if topics are loading OR no topic selected yet, and languages are loaded.
           isLoading={isTopicsLoading && !selectedTopic}
         />
       </div>

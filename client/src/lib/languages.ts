@@ -1,16 +1,29 @@
 // @/lib/languages.ts
 
-import { useQuery, type UseQueryResult } from '@tanstack/react-query';
-import { API_BASE_URL } from '../config'; // Ensure this path is correct if moved
+import { useQuery, type UseQueryResult, UseQueryOptions } from '@tanstack/react-query';
 import type { Language } from '@shared/schema';
+import { callApiWithAuth } from '@/utils/auth'; 
+import { useAuth } from '@/lib/authContext';
 
-export const _useFetchAllLanguages = (): UseQueryResult<Language[], Error> => {
-  return useQuery<Language[], Error>({
+type FetchAllLanguagesOptions = Omit<
+  UseQueryOptions<Language[], Error, Language[], ['/api/languages']>,
+  'queryKey' | 'queryFn'
+>;
+
+export const _useFetchAllLanguages = (
+  options?: FetchAllLanguagesOptions
+): UseQueryResult<Language[], Error> => {
+  const { isAuthenticated } = useAuth();
+  return useQuery<Language[], Error, Language[], ['/api/languages']>({ 
     queryKey: ['/api/languages'],
     queryFn: async () => {
-      const response = await fetch(`${API_BASE_URL}/api/languages`);
+      // Use callApiWithAuth to ensure authentication header is included
+      const response = await callApiWithAuth(`/api/languages`, {
+        method: 'GET' // Specify method if not default GET
+      });
       if (!response.ok) {
-        throw new Error('Failed to fetch languages: ' + response.statusText);
+        const errorText = await response.text();
+        throw new Error(`Failed to fetch languages: ${response.status} ${response.statusText} - ${errorText}`);
       }
       const data = await response.json();
 
@@ -23,5 +36,7 @@ export const _useFetchAllLanguages = (): UseQueryResult<Language[], Error> => {
     },
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
+    enabled: isAuthenticated && (options?.enabled ?? true),
+    ...options,
   });
 };

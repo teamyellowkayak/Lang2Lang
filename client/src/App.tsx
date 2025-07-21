@@ -4,21 +4,24 @@ import { Switch, Route, useLocation, Router as WouterRouter } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Home from "@/pages/Home";
 import Lesson from "@/pages/Lesson";
 import NotFound from "@/pages/not-found";
 import AppHeader from "@/components/AppHeader";
 import { FRONTEND_BASE_PATH } from './config';
 import { LanguageProvider } from "@/lib/languageProvider";
+import PasswordGate from "@/components/PasswordGate"; // Path to your new component
+import { authenticateApp, logout } from "@/utils/auth"; // Path to your new auth utilities
+import { AuthContext } from "@/lib/authContext"; 
 
-// import { LanguageContext } from "@/lib/languages";
-
+ const handleLogout = () => {
+   logout(); // This will clear the password and reload the page
+ };
 
 function AppRoutes() {
   const [location] = useLocation();
-  console.log("Wouter's current path 202507081200:", location);
-
+  console.log("Wouter's current path 202507191200:", location);
 
   return (
     <Switch>
@@ -29,17 +32,52 @@ function AppRoutes() {
       <Route path="/topics" component={Home} /> 
       <Route path="/lesson/:id" component={Lesson} />
       <Route component={NotFound} />
-      
     </Switch>
   );
 }
 
 function App() {
-//  const [currentLanguage, setCurrentLanguage] = useState<string>("es");
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [authAttempted, setAuthAttempted] = useState<boolean>(false); // To prevent flashing login screen
+
+  useEffect(() => {
+    const tryAutoAuthenticate = async () => {
+      // Get the stored password directly from localStorage in this effect
+      // as `authenticateApp` expects it.
+      const storedPassword = localStorage.getItem("lang2lang_access_password");
+
+      if (storedPassword) {
+        console.log("Attempting auto-authentication...");
+        const success = await authenticateApp(storedPassword);
+        setIsAuthenticated(success);
+      }
+      setAuthAttempted(true); // Mark that we've tried to authenticate
+    };
+
+    tryAutoAuthenticate();
+  }, []); // Run only once on mount
+
+  // Show a loading spinner or null while authentication is being attempted
+  if (!authAttempted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <p>Loading application...</p> {/* Or a spinner */}
+      </div>
+    );
+  }
+
+  // If not authenticated after attempt, show the password gate
+  if (!isAuthenticated) {
+    return (
+      <PasswordGate onAuthenticated={() => setIsAuthenticated(true)} />
+    );
+  }
+ 
   try {
       return (
+       <AuthContext.Provider value={{ isAuthenticated }}>
         <QueryClientProvider client={queryClient}>
-          <LanguageProvider> {/* This component now fetches data and provides the context */}
+          <LanguageProvider>
             <div className="min-h-screen bg-background flex flex-col">
               <AppHeader />
               <main className="flex-grow">
@@ -67,6 +105,7 @@ function App() {
                       <a href="#" className="text-gray-500 hover:text-primary">Help</a>
                       <a href="#" className="text-gray-500 hover:text-primary">Privacy</a>
                       <a href="#" className="text-gray-500 hover:text-primary">Terms</a>
+                      <button onClick={logout} className="text-gray-500 hover:text-primary">Logout</button>
                     </div>
                   </div>
                   
@@ -79,6 +118,7 @@ function App() {
             <Toaster />
           </LanguageProvider>
         </QueryClientProvider>
+       </AuthContext.Provider>
       );
   } catch (error) {
     console.error("An error occurred during App component rendering:", error);

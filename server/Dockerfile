@@ -14,7 +14,8 @@ RUN npm install
 
 # Run the build script to transpile TypeScript
 # This will create dist/index.cjs
-RUN npm run build
+RUN npm run build && echo "Build succeeded" && ls -l dist || echo "Build failed"
+
 
 # --- Optional Debugging (remove these if you want, but useful for final confirmation) ---
 RUN echo "Contents of /app/dist after build:"
@@ -24,7 +25,7 @@ RUN ls -l /app
 # --- End Debugging ---
 
 # Expose the port your Express app listens on
-EXPOSE 3000
+EXPOSE 8080
 
 # Command to run your application
 # The file will be at /app/dist/index.cjs from the build step

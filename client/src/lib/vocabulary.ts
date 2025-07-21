@@ -1,16 +1,33 @@
-import { useQuery } from "@tanstack/react-query";
-import { apiRequest } from "./queryClient";
 import { WordDetail, ChatMessage } from "@shared/schema";
-import { API_BASE_URL } from '../config';
+import { callApiWithAuth } from '@/utils/auth';
+import { useAuth } from '@/lib/authContext';
+import { useQuery, UseQueryOptions, QueryKey } from "@tanstack/react-query";
 
-export const useWordDetails = (word: string, targetLanguage: string) => {
-  return useQuery<WordDetail, Error>({ 
-    queryKey: ['/api/vocabulary', word, targetLanguage], 
+type WordDetailsQueryOptions = Omit<
+  UseQueryOptions<WordDetail, Error>,
+  'queryKey' | 'queryFn'
+>;
+
+export const useWordDetails = (
+  word: string,
+  targetLanguage: string,
+  options?: WordDetailsQueryOptions
+) => {
+  const { isAuthenticated } = useAuth();
+
+  const queryKey = ['/api/vocabulary', word, targetLanguage] as const;
+
+  // No need for the verbose generic on useQuery anymore
+  return useQuery({
+    queryKey: queryKey,
     queryFn: async ({ queryKey }) => {
-      const [_, fetchedWord, fetchedTargetLanguage] = queryKey; // Destructure correctly
-      // Ensure fetchedWord and fetchedTargetLanguage are treated as strings
-      const response = await fetch(`${API_BASE_URL}/api/vocabulary?word=${fetchedWord}&targetLanguage=${fetchedTargetLanguage}`);
-      if (!response.ok) {
+      // The types of fetchedWord and fetchedTargetLanguage are now correctly inferred
+      const [_, fetchedWord, fetchedTargetLanguage] = queryKey;
+      const response = await callApiWithAuth(
+        `/api/vocabulary?word=${fetchedWord}&targetLanguage=${fetchedTargetLanguage}`,
+        { method: 'GET' }
+      );
+    if (!response.ok) {
         // If not found, return a basic structure
         if (response.status === 404) {
           return {
@@ -25,25 +42,36 @@ export const useWordDetails = (word: string, targetLanguage: string) => {
             sourceLanguage: "en"
           } as WordDetail;
         }
-        throw new Error('Failed to fetch word details');
+        const errorBody = await response.text();
+        throw new Error(`Failed to fetch word details: ${response.status} ${response.statusText} - ${errorBody}`);
       }
       return response.json() as Promise<WordDetail>;
     },
     gcTime: 10 * 60 * 1000,
     staleTime: 5 * 60 * 1000,
-    enabled: !!word && !!targetLanguage
+    enabled: isAuthenticated && !!word && !!targetLanguage,
+    ...options, 
   });
 };
 
 export const useSendChatMessage = () => {
   const sendMessage = async (question: string, word: string, targetLanguage: string): Promise<ChatMessage> => {
     try {
-      const response = await apiRequest("POST", "${API_BASE_URL}/api/chat", {
-        question,
-        word,
-        targetLanguage
-      });
-      
+      const response = await callApiWithAuth(
+        `/api/chat`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            question,
+            word,
+            targetLanguage,
+          }),
+        }
+      );
+
       const data = await response.json();
       
       return {
@@ -65,23 +93,3 @@ export const useSendChatMessage = () => {
   
   return { sendMessage };
 };
-
-/*
-// Sample vocabulary data for use during development
-export const sampleVocabularyData: Vocabulary = {
-  id: 1,
-  word: "metro",
-  translation: "subway, metro",
-  partOfSpeech: "noun",
-  gender: "masculine",
-  definition: "An underground railway system that operates in a city.",
-  examples: [
-    "El metro es más rápido que el autobús. (The subway is faster than the bus.)",
-    "Tomo el metro todos los días para ir al trabajo. (I take the subway every day to go to work.)"
-  ],
-  notes: "Unlike in English, 'metro' is always masculine in Spanish, so it uses 'el' as its article, not 'la'.",
-  targetLanguage: "es",
-  sourceLanguage: "en",
-  relatedWords: ["estación", "tren", "transporte"]
-};
-*/

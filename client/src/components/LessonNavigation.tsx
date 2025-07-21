@@ -42,7 +42,7 @@ const LessonNavigation: React.FC<LessonNavigationProps> = ({
         </div>
         <button
           className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center shadow-md"
-          onClick={onDone} // <--- USE THE NEW onDone PROP HERE
+          onClick={onDone}
         >
           Done
           <span className="material-icons ml-1">done_all</span>

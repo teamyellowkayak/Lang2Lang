@@ -1,31 +1,48 @@
 // server/index.ts
 
 import express, { type Request, type Response, type NextFunction } from "express";
-import { registerRoutes } from "./routes";
-import cors from 'cors'; 
+import { registerRoutes } from "./routes"; // Assuming this registers your API routes and auth middleware
+import cors from 'cors';
+import dotenv from 'dotenv'; // Import dotenv to load environment variables from .env
+
+// Load environment variables from .env file
+dotenv.config();
 
 const app = express();
 
-// Configure CORS options
+// TEMPORARY: VERY EARLY HEADER LOGGING
+app.use((req, res, next) => {
+  console.log('--- RAW HEADERS ON ENTRY ---');
+  console.log(JSON.stringify(req.headers, null, 2));
+  console.log('--- END RAW HEADERS ---');
+  next();
+});
+
+// --- 1. CORS Configuration ---
+// Configure allowed origins based on environment
 const allowedOrigins = process.env.NODE_ENV === 'development'
-  ? ['http://localhost:5173', 'https://storage.googleapis.com'] // Allow local dev and deployed frontend for development testing
-  : ['https://storage.googleapis.com']; // Only allow deployed frontend in production
+  ? ['http://localhost:5173', 'https://storage.googleapis.com'] // Local dev frontend, and GCS general origin for testing
+  : ['https://storage.googleapis.com']; // In production, the *exact* origin for GCS served static content
 
 // Configure CORS options
 const corsOptions = {
-  // Use the determined allowedOrigins
   origin: allowedOrigins,
   methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE'],
-  credentials: true, // Keep this true for authentication/sessions
-  optionsSuccessStatus: 204
+  credentials: true, // Keep this true for authentication/sessions (if you use cookies/session IDs)
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Access-Password', 'x-access-password'],
+  optionsSuccessStatus: 204 // Recommended for preflight OPTIONS requests
 };
 
-// Use the cors middleware
+// Use the cors middleware. It should be applied early.
+// This single line handles both preflight OPTIONS and actual requests.
 app.use(cors(corsOptions));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+// --- 2. Body Parsers ---
+app.use(express.json()); // For parsing application/json
+app.use(express.urlencoded({ extended: false })); // For parsing application/x-www-form-urlencoded
 
+// --- 3. Custom Logging Middleware ---
+// This middleware captures JSON responses for logging.
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -42,11 +59,14 @@ app.use((req, res, next) => {
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
       if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+        // Limit the logged JSON to prevent excessively long log lines
+        const jsonString = JSON.stringify(capturedJsonResponse);
+        logLine += ` :: ${jsonString.length > 100 ? jsonString.substring(0, 97) + "..." : jsonString}`;
       }
 
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
+      // Ensure the overall log line does not exceed a reasonable length
+      if (logLine.length > 200) { // Increased from 80 to 200 for more detail, adjust as needed
+        logLine = logLine.slice(0, 197) + "…";
       }
 
       console.log(logLine);
@@ -56,28 +76,15 @@ app.use((req, res, next) => {
   next();
 });
 
-(async () => {
-  const server = await registerRoutes(app);
+// --- 4. Register Routes (including your authentication middleware) ---
+// This should register all your API endpoints.
+// Assuming registerRoutes will internally do something like:
+// app.use("/api", authenticateLocalPassword, apiRouter);
+registerRoutes(app);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-
-    res.status(status).json({ message });
-    throw err;
-  });
-
-
-// Cloud Run will provide a PORT environment variable.
-// For local development, we can fall back to 5000.
-  const port = process.env.PORT || 5000; // THIS IS THE CRUCIAL CHANGE
-
-  server.listen({
-    port: Number(port), // Ensure it's a number, as env vars are strings
-    host: "0.0.0.0", // Listen on all network interfaces
-    reusePort: true, // This might not be strictly necessary for Cloud Run, but harmless
-  }, () => {
-  console.log(`serving on port ${port}`);
+// --- 5. Start the Server ---
+const port = process.env.PORT || 8080;
+// Cloud Run expects your server to listen on 0.0.0.0
+app.listen(Number(port), "0.0.0.0", () => {
+  console.log(`Server listening on port ${port}`);
 });
-
-})();

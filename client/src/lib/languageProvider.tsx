@@ -7,22 +7,28 @@ import type {
   LanguageContextType
 } from './languageContext'; 
 import { _useFetchAllLanguages } from './languages';
+import { useAuth } from './authContext';
 
 interface LanguageProviderProps {
   children: ReactNode;
 }
 
 export const LanguageProvider = ({ children }: LanguageProviderProps) => {
+  const { isAuthenticated } = useAuth();
 
 // below is where the issue most likely is
-  const { data: allLanguages, isLoading, isError, error } = _useFetchAllLanguages();
+  const { data: allLanguages, isLoading, isError, error } = _useFetchAllLanguages({
+    enabled: isAuthenticated
+  });
   const [currentLanguageCode, setCurrentLanguageCodeState] = useState<string>("es");
+  
 
   console.log("LanguageProvider Status:");
   console.log("  isLoading:", isLoading);
   console.log("  isError:", isError);
   console.log("  error (if any):", error);
   console.log("  allLanguages (data):", allLanguages);
+  console.log("  isAuthenticated (LP):", isAuthenticated);
 
   useEffect(() => {
     if (allLanguages && allLanguages.length > 0 && currentLanguageCode === "es") {

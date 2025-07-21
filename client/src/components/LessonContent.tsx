@@ -7,7 +7,8 @@ import PhraseHelp from './PhraseHelpPanel';
 interface LessonContentProps {
   lesson: LessonWithTopic;
   currentExchangeIndex: number;
-  onComplete: () => void;
+  isLastStep: boolean;
+  onCompleteStep: () => void;
   onPrevious: () => void;
   hintText: string;
   onHintClick: (content: string) => void;
@@ -26,7 +27,8 @@ interface LessonContentProps {
 const LessonContent: React.FC<LessonContentProps> = ({
   lesson,
   currentExchangeIndex,
-  onComplete,
+  isLastStep,
+  onCompleteStep,
   onPrevious,
   hintText,
   onHintClick,
@@ -253,13 +255,6 @@ const LessonContent: React.FC<LessonContentProps> = ({
     setSelectedWord(cleanWord);
   };
 
-  const handleInputChange = (index: number, value: string) => {
-    setInputs(prev => ({
-      ...prev,
-      [index]: value
-    }));
-  };
-
   const handleOptionClick = (option: string) => {
     // Find the first blank that doesn't have an answer yet
     const blankIndices = Object.keys(inputs).map(Number);
@@ -277,29 +272,55 @@ const LessonContent: React.FC<LessonContentProps> = ({
     }
   };
 
-  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, currentIndex: number) => {
-    if (e.key === ' ') { // Check if the pressed key is the space bar
-      e.preventDefault(); // Prevent the space character from being entered into the input
-
-      // Get all blank indices for the current exchange, sorted numerically
-      const blankIndices = currentExchange?.blanks
-        ?.map(blank => blank.index)
-        .sort((a, b) => a - b) || [];
-
-      // Find the position of the current blank in the sorted list
-      const currentBlankIndexInSortedArray = blankIndices.indexOf(currentIndex);
-
-      // Check if there is a next blank
-      if (currentBlankIndexInSortedArray !== -1 && currentBlankIndexInSortedArray < blankIndices.length - 1) {
-        const nextBlankIndex = blankIndices[currentBlankIndexInSortedArray + 1];
-        const nextInput = inputRefs.current[nextBlankIndex];
-        if (nextInput) {
-          nextInput.focus(); // Focus on the next input field
-        }
-      }
-      // If it's the last blank, do nothing
+  const handleInputKeyDown = (currentIndex: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Keep this for desktop/physical keyboards where preventDefault works reliably
+    if (e.key === ' ') {
+      e.preventDefault(); // Try to prevent space from being entered
+      focusNextBlank(currentIndex);
     }
   };
+
+  // Helper function to encapsulate the focus logic
+  const focusNextBlank = (currentIndex: number) => {
+    const blankIndices = currentExchange?.blanks
+      ?.map(blank => blank.index)
+      .sort((a, b) => a - b) || [];
+
+    const currentBlankIndexInSortedArray = blankIndices.indexOf(currentIndex);
+
+    if (currentBlankIndexInSortedArray !== -1 && currentBlankIndexInSortedArray < blankIndices.length - 1) {
+      const nextBlankIndex = blankIndices[currentBlankIndexInSortedArray + 1];
+      const nextInput = inputRefs.current[nextBlankIndex];
+      if (nextInput) {
+        nextInput.focus();
+      }
+    }
+  };
+
+  const handleInputChange = useCallback((index: number, valueOrEvent: string | React.ChangeEvent<HTMLInputElement>) => {
+    let value: string;
+    let isFromChangeEvent = false;
+
+    if (typeof valueOrEvent === 'string') {
+      value = valueOrEvent;
+    } else {
+      value = valueOrEvent.target.value;
+      isFromChangeEvent = true;
+    }
+
+    let finalValue = value;
+
+    // Logic for spacebar auto-advance, only if it's from a keyboard input (change event)
+    if (isFromChangeEvent && finalValue.endsWith(' ') && finalValue.trim().length > 0) {
+      finalValue = finalValue.trim(); // Remove the space
+      focusNextBlank(index);
+    }
+
+    setInputs(prev => ({
+      ...prev,
+      [index]: finalValue
+    }));
+  }, [focusNextBlank]); // Dependency: focusNextBlank
 
   const renderWordOrBlank = (word: string, wordIndex: number) => {
     const blankData = currentExchange?.blanks?.find(blank => blank.index === wordIndex);
@@ -334,8 +355,8 @@ const LessonContent: React.FC<LessonContentProps> = ({
             placeholder="______"
             value={inputs[wordIndex] || ''}
 
-            onChange={(e) => handleInputChange(wordIndex, e.target.value)}
-            onKeyDown={(e) => handleInputKeyDown(e, wordIndex)}
+            onChange={(e) => handleInputChange(wordIndex, e)}
+            onKeyDown={(e) => handleInputKeyDown(wordIndex, e)}
             ref={(el) => { inputRefs.current[wordIndex] = el; }} 
           />
         )}
@@ -539,7 +560,8 @@ const LessonContent: React.FC<LessonContentProps> = ({
               </button>
               <button 
                 className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center"
-                onClick={() => onComplete()}
+                onClick={() => onCompleteStep()}
+                disabled={isLastStep}
               >
                 Next
                 <span className="material-icons ml-1">arrow_forward</span>
