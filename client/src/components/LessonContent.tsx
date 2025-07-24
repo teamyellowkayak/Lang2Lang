@@ -70,7 +70,7 @@ const LessonContent: React.FC<LessonContentProps> = ({
       .toLowerCase()
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "") // Remove accents
-      .replace(/[.,!?¿'`;:()]/g, ""); // Remove punctuation
+      .replace(/[.,!?¿¡'`;:()]/g, ""); // Remove punctuation
   };
 
   const getWordOptions = useCallback(() => {
@@ -79,10 +79,10 @@ const LessonContent: React.FC<LessonContentProps> = ({
     const optionsSet = new Set<string>();
 
     currentExchange.blanks.forEach(blank => {
-      optionsSet.add(blank.correctAnswer.toLowerCase().replace(/[.,!?¿'`;:()]/g, ""));
+      optionsSet.add(blank.correctAnswer.toLowerCase().replace(/[.,!?¿¡'`;:()]/g, ""));
       if (blank.incorrectAnswers && Array.isArray(blank.incorrectAnswers)) {
         blank.incorrectAnswers.forEach(incorrect => {
-          optionsSet.add(incorrect.toLowerCase().replace(/[.,!?¿'`;:()]/g, ""));
+          optionsSet.add(incorrect.toLowerCase().replace(/[.,!?¿¡'`;:()]/g, ""));
         });
       }
     });

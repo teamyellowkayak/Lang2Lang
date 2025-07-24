@@ -676,7 +676,7 @@ export class FirestoreStorage {
       .toLowerCase()
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "") // Remove accents
-      .replace(/[.,!?¿'`;:()]/g, ""); // Remove punctuation
+      .replace(/[.,!?¿¡'`;:()]/g, ""); // Remove punctuation
   }
 
   async chatAboutSentenceWithCloudFunction(

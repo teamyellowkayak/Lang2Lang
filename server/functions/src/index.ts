@@ -190,6 +190,9 @@ const LESSONPROMPT_4 = [
   " to the 'correctAnswer', but NOT identical",
   " and they should not be considered an accepted equivalent",
   " words when translated.",
+  " Incorrect and correct answers should not include punctuation ",
+  " like periods, commas, semicolons, upside-down exclamation marks, ",
+  " exclamation marks, upside-down question marks, or question marks. ",
   " Pay special attention to the incorrectAnswers field, ",
   " which must always be a JSON array of strings, ",
   " even if it contains only one item. ",
@@ -212,6 +215,19 @@ const LESSONPROMPT_4 = [
   "11. **Learning level:**",
   "    * exchanges content should be appropriate for ",
   " the learning level stated above.",
+  "12. **Numbers:**",
+  "    * Numbers should be written out; not shown in numeric form ",
+  " e.g., 'forty five' and not '45'.",
+  "13. **Randomness:**",
+  "    * To make this more diverse, consider recent news events ",
+  " that could be added into the story ",
+  " and change the nature of the dialogue. ",
+  " Also consider location ",
+  " as a city, town, or village that speaks the language above ",
+  " that has been mentioned in the news recently. ",
+  "14. **Characters:**",
+  "    * Do not include characters like '[' or ']' ",
+  " because they mess up the grouping of words. ",
   " Example JSON (for structure only, content should be unique ",
   "  per topic):",
   "{\"title\":\"Greetings\",",
@@ -394,8 +410,20 @@ exports.createLesson = functions
             topicLevel +
             LESSONPROMPT_4;
 
-        // const X = `${LESSONPROMPT_1}${topicTitle}${LESSONPROMPT_2}`;
-        const result = await model.generateContent(lessonPrompt);
+        const generationConfig = {
+          temperature: 0.7,
+          topP: 0.8,
+          // topK: 50,
+        };
+
+        const requestPrompt = {
+          contents: [{role: "user", parts: [{text: lessonPrompt}]}],
+          generationConfig: generationConfig,
+        };
+
+        const result = await model.generateContent(
+          requestPrompt
+        );
         const response = await result.response;
         const text = response.text();
 
