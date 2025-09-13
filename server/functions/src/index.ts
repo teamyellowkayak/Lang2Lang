@@ -119,11 +119,17 @@ const LESSONPROMPT_1 = [
 ].join("\n");
 
 const LESSONPROMPT_2 = [
+  " using the latin alphabet version of the language and ",
   " based on this given topic: '",
 ].join("\n");
 
 const LESSONPROMPT_3 = [
   "'. ",
+  "Each lesson you do is unique",
+  " and highly varied from past lessons or standard lessons. ",
+  " To ensure randomness, showcase diverse sentence structure",
+  " and unique words. Avoid using the same opening phrases. ",
+  " Avoid the most obvious initial words.",
   "The lesson should be engaging and useful for a learner type: ",
 ].join("\n");
 
@@ -160,6 +166,8 @@ const LESSONPROMPT_4 = [
   "1. **Topic:** ",
   " The lesson content must be relevant to the topic provided above.",
   "2. **Number of Exchanges:** Generate exactly 10 exchange objects.",
+  " with each exchange being about 5-12 words per exchange, ",
+  " but they can be more or less depending on the exchange. ",
   "3. **Speakers:** Alternate speakers between \"user\" and \"other\".",
   "   Start with \"user\".",
   "4. **Speaker Names:** Use diverse and appropriate names ",
@@ -225,9 +233,12 @@ const LESSONPROMPT_4 = [
   " Also consider location ",
   " as a city, town, or village that speaks the language above ",
   " that has been mentioned in the news recently. ",
+  " Ensure significant differences between generated sentences. ",
   "14. **Characters:**",
-  "    * Do not include characters like '[' or ']' ",
+  "    * correct or incorrect words should ",
+  " never include characters like '[' or ']' ",
   " because they mess up the grouping of words. ",
+  "",
   " Example JSON (for structure only, content should be unique ",
   "  per topic):",
   "{\"title\":\"Greetings\",",
@@ -239,7 +250,157 @@ const LESSONPROMPT_4 = [
   "\"nativeText\":\"Hello! How are you?\",",
   "\"translatedText\":\"¡Hola! ¿Cómo estás?\",",
   "\"blanks\":[",
-  "{\"index\":0,\"correctAnswer\":\"Hola\"},",
+  "{\"index\":0,\"correctAnswer\":\"Hola\",",
+  " \"incorrectAnswers\":[\"Holi\", \"Alo\", \"Adios\"]},",
+  "{\"index\":1,\"correctAnswer\":\"Cómo\",",
+  " \"incorrectAnswers\":[\"Come\", \"Cuándo\", \"Qué\"]},",
+  "{\"index\":2,\"correctAnswer\":\"estás\",",
+  " \"incorrectAnswers\":[\"estas\", \"este\", \"estamos\"]}",
+  "]",
+  "},",
+  "{\"id\":\"ex2\",",
+  "\"speaker\":\"other\",",
+  "\"speakerName\":\"Maria\",",
+  "\"nativeText\":\"I am good, thank you. And you?\",",
+  "\"translatedText\":\"Estoy bien, gracias. ¿Y tú?\",",
+  "\"blanks\":[",
+  "{\"index\":0,\"correctAnswer\":\"Estoy\",",
+  " \"incorrectAnswers\":[\"Es\", \"Está\", \"Están\"]},",
+  "{\"index\":1,\"correctAnswer\":\"bien\",",
+  " \"incorrectAnswers\":[\"bueno\", \"malo\", \"feliz\"]},",
+  "{\"index\":2,\"correctAnswer\":\"gracias\",",
+  " \"incorrectAnswers\":[\"gracia\", \"favor\", \"corazón\"]},",
+  "{\"index\":3,\"correctAnswer\":\"Y\",",
+  " \"incorrectAnswers\":[\"E\", \"O\", \"Pero\"]},",
+  "{\"index\":4,\"correctAnswer\":\"tú\",",
+  " \"incorrectAnswers\":[\"usted\", \"vos\", \"yo\"]}",
+  "]",
+  "},", // End of ex2
+  "]}", // End of exchanges array
+].join("\n");
+
+const BASIC_LESSONPROMPT_1 = [
+  "You are a language learning lesson generator.",
+  "Your task is to create a structured language lesson in ",
+].join("\n");
+
+const BASIC_LESSONPROMPT_2 = [
+  " using the latin alphabet version of the language and ",
+  " based on using the following sentences: ",
+  " \"one, two, three, four, five, six, seven, eight, ",
+  " nine, ten, eleven, twelve \", ",
+  " \"twenty, thirty, forty, fifty, sixty, seventy, ",
+  " eighty, ninety, one hundred \", ",
+  " \"twenty one, twenty two, thirty one\", ",
+  " \"Thank you, please, excuse me.  \", ",
+  " \"Good morning. Good day. Good afternoon. Good evening. \", ",
+  " \"How are you? \", ",
+  " \"What is your name? My name is Drew. \", ",
+  " \"I'm good. I'm sick. I'm tired. \", ",
+  " \"Do you have food or water? I have money, a phone, ",
+  " and a passport. Can I pay in dollars?\", ",
+  " \"Where are the clothes? Are they in the room? ",
+  " Where is the bank?  \", ",
+  " \"Where are you from? I'm from Austin, Texas. ",
+  " We're from Austin, Texas.\", ",
+  " \"Where are we going? Who is that person?\", ",
+  " \"I would like food. I like healthy food. ",
+  " Can I have some water? \", ",
+  " \"This thing is to the left. This is to the right. ",
+  " That is ahead of me.\", ",
+  " \"This is behind me. Those are up and these are down. \", ",
+  " \"My water is here next to my wife. ",
+  " My food is there beside my daughter.  \", ",
+  " \"What time is it? When will we leave? When will we arrive? \", ",
+  " \"What is that? Is it safe? \", ",
+  "",
+  "The output MUST be a single, well-formed JSON object.",
+  "Do NOT include any text before or after the JSON.",
+  "Do NOT include markdown backticks (```json) in the response.",
+  "", // Blank line for separation
+  "The JSON object must have the following structure:",
+  "{",
+  " \"title\": \"string\",",
+  " \"context\": \"string\", // Short intro paragraph for lesson",
+  " \"exchanges\": [",
+  " {",
+  " \"id\": \"string\", // UniqueID for exchange (e.g., \"x1\", \"x2\")",
+  " \"speaker\": \"string\", // \"user\" or \"other\"",
+  " \"speakerName\": \"string\", // e.g., \"You\", \"Ana\", \"Doctor\"",
+  " \"nativeText\": \"string\", // Original text in English",
+  " \"translatedText\": \"string\", // Translated text in Spanish",
+  " \"blanks\": [",
+  " {",
+  " \"index\": number, // Index of the word to blank (0-based)",
+  " \"correctAnswer\": \"string\" // The original word at that index",
+  " \"incorrectAnswers\": [\"string\"],",
+  "        }",
+  "      ]",
+  "    }",
+  "    // ... the remaining exchange objects",
+  "  ]",
+  "}",
+  "",
+  "Important Rules for Lesson Content:",
+  "1. **Speakers:** In this case, the speaker will always be \"You\".",
+  "2. **Native Text:** Provide clear, concise English translations.",
+  "3. **Translated Text:** Provide accurate, natural-sounding translations",
+  "   in the language specified above.",
+  "4. **Title:** The title should be concise ",
+  "  and descriptive of the lesson.",
+  "5. **Blanks:** For EACH exchange, make every word a blank.",
+  "   * The \"index\" for \"blanks\" is the 0-based word index in the",
+  "     \"translatedText\" string.",
+  "   * The \"correctAnswer\" is the word found at that exact index.",
+  "   * Do NOT include the blank character (e.g., \"_\") in the",
+  "     \"translatedText\". The \"blanks\" array provides info for UI.",
+  "6. **Incorrect Answers (for Blanks):**",
+  "    * For EACH blank, provide an array of 3 'incorrectAnswers'.",
+  "    * Incorrect answers must be similar in appearance or type",
+  " to the 'correctAnswer', but NOT identical",
+  " and they should not be considered an accepted equivalent",
+  " words when translated.",
+  " Incorrect and correct answers should not include punctuation ",
+  " like periods, commas, semicolons, upside-down exclamation marks, ",
+  " exclamation marks, upside-down question marks, or question marks. ",
+  " Pay special attention to the incorrectAnswers field, ",
+  " which must always be a JSON array of strings, ",
+  " always with an opening '[' and closing ']', ",
+  " even if it contains only one item. ",
+  " Do not include any other text or conversational elements ",
+  " in your response, only the JSON. ",
+  "    * Examples for Incorrect Answers:",
+  "      - Nouns: if 'banana' is correct, incorrect could be ",
+  " 'bandana', 'manzana', 'platano'",
+  " or the plural version versus the singular version.",
+  "      - Articles/Prepositions: if 'El' is correct, incorrect could be ",
+  " 'del', 'la', 'le'.",
+  "      - Verbs: if 'habla' (he/she/usted speaks) is correct,",
+  " incorrect could be 'hablas' (you speak), 'hable' (subjunctive),",
+  " 'hablaba' (imperfect), 'hablo' (I speak).",
+  "      - Adjectives/Adverbs: similar gender/number variations,",
+  " plural versus singular, or related words.",
+  "      - General: similar looking words in the same language",
+  " such as if 'como' is correct, incorrect could be 'come', 'cama'.",
+  "",
+  "7. **Numbers:**",
+  "    * Numbers should be written out; not shown in numeric form ",
+  " e.g., 'forty five' and not '45'.",
+  "8. **Characters:**",
+  "    * correct or incorrect words should ",
+  " never include characters like '[' or ']' ",
+  " because they mess up the grouping of words. ",
+  "",
+  " Example JSON (for structure only):",
+  "{\"title\":\"Greetings\",",
+  "\"context\":\"Learn basic greetings.\",",
+  "\"exchanges\":[",
+  "{\"id\":\"ex1\",",
+  "\"speaker\":\"user\",",
+  "\"speakerName\":\"You\",",
+  "\"nativeText\":\"Hello! How are you?\",",
+  "\"translatedText\":\"¡Hola! ¿Cómo estás?\",",
+  "\"blanks\":[",
   "{\"index\":0,\"correctAnswer\":\"Hola\",",
   " \"incorrectAnswers\":[\"Holi\", \"Alo\", \"Adios\"]},",
   "{\"index\":1,\"correctAnswer\":\"Cómo\",",
@@ -275,7 +436,7 @@ const TRANSLATEPROMPT_1 = [
 ].join("\n");
 
 const TRANSLATEPROMPT_2 = [
-  " to the target language: ",
+  " to the target language (using the latin alphabet): ",
 ].join("\n");
 
 const TRANSLATEPROMPT_3 = [
@@ -402,18 +563,23 @@ exports.createLesson = functions
           model: "gemini-1.5-pro-latest",
         });
 
-        const lessonPrompt = LESSONPROMPT_1 +
+        const isBasic = topicTitle.toLowerCase().includes("drew basics");
+        const lessonPromptD = LESSONPROMPT_1 +
             topicLanguage +
             LESSONPROMPT_2 +
             topicTitle +
             LESSONPROMPT_3 +
             topicLevel +
             LESSONPROMPT_4;
+        const lessonPromptB = BASIC_LESSONPROMPT_1 +
+              topicLanguage +
+              BASIC_LESSONPROMPT_2;
+        const lessonPrompt = isBasic ? lessonPromptB : lessonPromptD;
 
         const generationConfig = {
-          temperature: 0.7,
-          topP: 0.8,
-          // topK: 50,
+          temperature: 0.95,
+          topP: 0.9,
+          topK: 1000,
         };
 
         const requestPrompt = {
@@ -427,20 +593,19 @@ exports.createLesson = functions
         const response = await result.response;
         const text = response.text();
 
-        console.log("AI Response:", text);
-
         let lessonData: LessonDataFromAI;
         try {
           const cleanText = text.replace(/```json\n|```/g, "").trim();
           const fixedJsonText = fixAIJsonResponse(cleanText);
+          console.log("AI Response fixedJsonText:", fixedJsonText);
           lessonData = JSON.parse(fixedJsonText);
 
           if (
             !lessonData ||
             typeof lessonData.title !== "string" ||
             typeof lessonData.context !== "string" ||
-            !Array.isArray(lessonData.exchanges) ||
-            lessonData.exchanges.length !== 10
+            !Array.isArray(lessonData.exchanges)
+            // || lessonData.exchanges.length !== 10
           ) {
             throw new Error("AI response structure or exchange count invalid.");
           }
@@ -461,7 +626,7 @@ exports.createLesson = functions
           }
         } catch (parseError: unknown) {
           console.error("Failed to parse/validate AI response:", parseError);
-          console.error("AI response raw text:", text);
+          console.error("AI response test:", text);
 
           const message = parseError instanceof Error ?
             parseError.message : String(parseError);
@@ -509,7 +674,10 @@ function fixAIJsonResponse(rawJsonString: string): string {
   // It looks for "incorrectAnswers": followed by a string in quotes,
   // and then optionally more quoted strings separated by ", "
   // until a non-quote/non-comma/non-space char or end of line.
-  const regex = /("incorrectAnswers":\s*)("[^"]*"(?:,\s*"[^"]*")*)(?=[,}\n])/g;
+  const start = /("incorrectAnswers":\s*)/;
+  // ("[^"]*"(?:,\s*"[^"]*")*)(?=[,}\n])/g;
+  const content = /("([^"]*)",\s*"([^"]*)",\s*"([^"]*)")/;
+  const regex = new RegExp(start.source + content.source, "g");
   const fixedString = rawJsonString.replace(regex, (match, p1, p2) => {
     return `${p1}[${p2}]`;
   });
