@@ -286,7 +286,7 @@ const BASIC_LESSONPROMPT_1 = [
 
 const BASIC_LESSONPROMPT_2 = [
   " using the latin alphabet version of the language and ",
-  " based on using the following sentences: ",
+  " using all the following sentences as exchanges: ",
   " \"one, two, three, four, five, six, seven, eight, ",
   " nine, ten, eleven, twelve \", ",
   " \"twenty, thirty, forty, fifty, sixty, seventy, ",
@@ -560,7 +560,7 @@ exports.createLesson = functions
 
         const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({
-          model: "gemini-1.5-pro-latest",
+          model: "gemini-2.5-pro",
         });
 
         const isBasic = topicTitle.toLowerCase().includes("drew basics");
@@ -581,6 +581,8 @@ exports.createLesson = functions
           topP: 0.9,
           topK: 1000,
         };
+
+        // maxOutputTokens: 2048,
 
         const requestPrompt = {
           contents: [{role: "user", parts: [{text: lessonPrompt}]}],
@@ -753,7 +755,7 @@ exports.translateVocabulary = functions
       // 5. Initialize Gemini AI
       const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({
-        model: "gemini-1.5-pro-latest", // Or your preferred model
+        model: "gemini-2.5-pro", // Or your preferred model
       });
 
       try {
@@ -917,7 +919,7 @@ exports.chatAboutSentence = functions
       // 5. Initialize Gemini AI
       const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({
-        model: "gemini-1.5-pro-latest",
+        model: "gemini-2.5-pro",
       });
 
       try {

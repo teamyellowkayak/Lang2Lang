@@ -56,7 +56,13 @@ const Lesson = () => {
     setChatExplanation(null);
     setIsLoadingChat(false);
     setChatError(null);
-  }, [lessonId, currentExchangeIndex]);
+
+    // so the user sees the correct text, even before they click 'Lookup'
+    if (currentExchange) {
+      setPhraseHelpInput(currentExchange.nativeText);
+    }
+  
+  }, [lessonId, currentExchangeIndex, currentExchange]);
 
   // Function to perform the vocabulary lookup
   // Its dependencies (currentExchange, currentLanguage) might be null initially, which is fine,
@@ -199,13 +205,20 @@ const Lesson = () => {
     setCurrentExchangeIndex(step - 1);
   }, []); // Empty deps because it only uses the setter
 
-  // MODIFIED: handleHintClick now updates the phraseHelpInput and triggers the lookup
-  const handleHintClick = useCallback((hintContent: string) => { // Make handleHintClick useCallback
-    console.log("Lesson.tsx: Hint clicked with content:", hintContent);
+  const handlePhraseLookupClick = useCallback((hintContent: string) => { 
+    console.log("Lesson.tsx: Phrase Lookup clicked with content:", hintContent);
     setPhraseHelpInput(hintContent);
     performPhraseLookup(hintContent);
   }, [performPhraseLookup]); // Add performPhraseLookup to deps
 
+  const handleHintRedirect = useCallback(() => {
+    // Use a unique ID that corresponds to the Phrase Help section in LessonContent
+    const phraseHelpSection = document.getElementById('phrase-help-section');
+    if (phraseHelpSection) {
+      phraseHelpSection.scrollIntoView({ behavior: 'smooth' });
+    }
+    // No data loading occurs here.
+  }, []);
 
   // --- CONDITIONAL RENDERING AFTER ALL HOOKS ARE CALLED ---
   if (error) {
@@ -286,7 +299,8 @@ const Lesson = () => {
           isLastStep={isLastStep}
           onPrevious={handlePrevious}
           onCompleteStep={handleNextStep}
-          onHintClick={handleHintClick}
+          onHintClick={handleHintRedirect}
+          onPhraseLookupClick={handlePhraseLookupClick}
           hintText={currentExchange?.nativeText || ''}
           phraseHelpInput={phraseHelpInput}
           setPhraseHelpInput={setPhraseHelpInput}

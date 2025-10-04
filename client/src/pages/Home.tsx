@@ -57,8 +57,17 @@ const Home = () => {
     : [];
 
   const handleTopicSelect = (topic: Topic) => {
-    setSelectedTopic(topic);
-  };
+    setSelectedTopic(topic);
+    
+    // Wait for the state update (which triggers TopicPreview to render/update)
+    setTimeout(() => {
+      const topicContentSection = document.getElementById('topic-preview-section');
+      if (topicContentSection) {
+        // Use 'smooth' behavior for a nicer transition on mobile
+        topicContentSection.scrollIntoView({ behavior: 'smooth' });
+      }
+    }, 0); // Use setTimeout(..., 0) to ensure scroll happens after React renders the new state
+  };
 
   // 1. Handle overall application loading states first
   if (!isAuthenticated) {
@@ -113,10 +122,12 @@ const Home = () => {
           isLoading={isTopicsLoading}
         />
 
-        <TopicPreview
-          topic={selectedTopic}
-          isLoading={isTopicsLoading && !selectedTopic}
-        />
+        <div id="topic-preview-section" className="w-full md:w-2/3"> 
+          <TopicPreview
+            topic={selectedTopic}
+            isLoading={isTopicsLoading && !selectedTopic}
+          />
+        </div>
       </div>
     </div>
   );

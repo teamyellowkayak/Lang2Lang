@@ -11,7 +11,8 @@ interface LessonContentProps {
   onCompleteStep: () => void;
   onPrevious: () => void;
   hintText: string;
-  onHintClick: (content: string) => void;
+  onHintClick: () => void;
+  onPhraseLookupClick: (content: string) => void;
   phraseHelpInput: string;
   setPhraseHelpInput: (phrase: string) => void;
   translatedWords: WordDetail[];
@@ -32,6 +33,7 @@ const LessonContent: React.FC<LessonContentProps> = ({
   onPrevious,
   hintText,
   onHintClick,
+  onPhraseLookupClick,
   phraseHelpInput,
   setPhraseHelpInput,
   translatedWords,
@@ -407,11 +409,16 @@ const LessonContent: React.FC<LessonContentProps> = ({
                       ? 'bg-primary-100 text-primary-700' 
                       : 'bg-gray-100 text-gray-700'
                   } flex items-center justify-center font-medium`}>
-                    {exchange.speaker === 'user' ? 'Y' : 'L'}
+                    <span className="text-xs font-bold">
+                      {exchangeIdx + 1} 
+                    </span>
+                    {/* {exchange.speaker === 'user' ? 'Y' : 'L'} */}
                   </div>
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm text-gray-500">{exchange.speakerName}:</p>
+                  <p className="text-sm text-gray-500">
+                    {exchange.speakerName}:
+                  </p>
                   <div className="text-gray-900 text-lg mt-1">
                     {/* English text */}
                     <p className="text-gray-500 text-base mb-1">{exchange.nativeText}</p>
@@ -444,11 +451,7 @@ const LessonContent: React.FC<LessonContentProps> = ({
               <div className="flex flex-wrap gap-3 mb-4">
                 <button
                   onClick={() => {
-                    // Ensure that 'hintText' is passed down as a prop to LessonContent
-                    // and 'onHintClick' is also passed down as a prop.
-                    if (hintText) { // Only call if there's actual hint content
-                      onHintClick(hintText);
-                    }
+                    onHintClick();
                   }}
                   className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md text-sm font-medium flex items-center"
                 >
@@ -572,7 +575,7 @@ const LessonContent: React.FC<LessonContentProps> = ({
       </div>
       
       {/* Word Exploration Sidebar */}
-      <div className="w-full lg:w-1/3 mt-6 lg:mt-0 lg:ml-6 p-6 bg-white shadow-md rounded-lg">
+      <div className="w-full lg:w-1/3 mt-6 lg:mt-0 lg:ml-6 p-6 bg-white shadow-md rounded-lg" id="phrase-help-section" >
         <PhraseHelp
           phraseHelpInput={phraseHelpInput}
           setPhraseHelpInput={setPhraseHelpInput}

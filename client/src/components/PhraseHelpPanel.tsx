@@ -39,7 +39,7 @@ const PhraseHelpPanel: React.FC<PhraseHelpPanelProps> = ({
 
   const isInitialMount = useRef(true);
 
- const { allLanguages, isLoadingLanguages, languagesError } = useLanguage(); // May need to add back!
+  const { allLanguages, isLoadingLanguages, languagesError } = useLanguage(); // May need to add back!
 
   useEffect(() => {
     // if (isInitialMount.current && phraseHelpInput) {
