@@ -23,7 +23,7 @@ const TopicSelection: React.FC<TopicSelectionProps> = ({
       topic.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       topic.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
       topic.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (topic.tags && topic.tags.some(tag => 
+      (topic.tags && topic.tags.some((tag: any) =>
         tag.toLowerCase().includes(searchQuery.toLowerCase())
       ))
     )

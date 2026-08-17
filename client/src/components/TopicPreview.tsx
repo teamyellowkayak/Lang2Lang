@@ -111,7 +111,7 @@ const TopicPreview: React.FC<TopicPreviewProps> = ({ topic, isLoading }) => {
         <div className="mb-6">
           <h3 className="text-base font-medium text-gray-900 mb-2">You'll learn:</h3>
           <div className="flex flex-wrap gap-2">
-            {topic.tags && topic.tags.map((tag, index) => (
+            {topic.tags && topic.tags.map((tag: any, index: any) => (
               <span key={index} className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">
                 {tag}
               </span>

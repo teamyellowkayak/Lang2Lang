@@ -93,12 +93,12 @@ export const generateNewFillInTheBlanks = (exchanges: Exchange[]): Exchange[] =>
       const words = exchange.translatedText.split(' ');
       
       // Remove punctuation from words for better selection
-      const cleanWords = words.map(word => word.replace(/[.,!?;:()]/g, ''));
+      const cleanWords = words.map((word: any) => word.replace(/[.,!?;:()]/g, ''));
       
       // Find indices of words that have length > 3 (more substantial words)
       const eligibleIndices = cleanWords
-        .map((word, index) => word.length > 3 ? index : -1)
-        .filter(index => index !== -1);
+        .map((word: any, index: any) => word.length > 3 ? index : -1)
+        .filter((index: any) => index !== -1);
       
       // If we have enough words, select new random blanks
       if (eligibleIndices.length >= exchange.blanks.length) {

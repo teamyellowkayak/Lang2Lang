@@ -80,10 +80,10 @@ const LessonContent: React.FC<LessonContentProps> = ({
 
     const optionsSet = new Set<string>();
 
-    currentExchange.blanks.forEach(blank => {
+    currentExchange.blanks.forEach((blank: any) => {
       optionsSet.add(blank.correctAnswer.toLowerCase().replace(/[.,!?¿¡'`;:()]/g, ""));
       if (blank.incorrectAnswers && Array.isArray(blank.incorrectAnswers)) {
-        blank.incorrectAnswers.forEach(incorrect => {
+        blank.incorrectAnswers.forEach((incorrect: any) => {
           optionsSet.add(incorrect.toLowerCase().replace(/[.,!?¿¡'`;:()]/g, ""));
         });
       }
@@ -110,7 +110,7 @@ const LessonContent: React.FC<LessonContentProps> = ({
     // Reset inputs when the exchange changes
     if (currentExchange?.blanks) {
       const initialInputs: Record<number, string> = {};
-      currentExchange.blanks.forEach(blank => {
+      currentExchange.blanks.forEach((blank: any) => {
         initialInputs[blank.index] = '';
       });
       setInputs(initialInputs);
@@ -145,7 +145,7 @@ const LessonContent: React.FC<LessonContentProps> = ({
     }
     
     // Get all blank answers and their indices
-    const blanks = exchange.blanks.map(blank => {
+    const blanks = exchange.blanks.map((blank: any) => {
       return { 
         index: blank.index,
         word: blank.correctAnswer
@@ -172,7 +172,7 @@ const LessonContent: React.FC<LessonContentProps> = ({
         output += "______ ";
       } else {
         // Check if this word appears elsewhere as a blank answer
-        const matchingBlank = blanks.find(blank => 
+        const matchingBlank = blanks.find((blank: any) => 
           cleanWord.toLowerCase() === blank.word.toLowerCase()
         );
         
@@ -208,7 +208,7 @@ const LessonContent: React.FC<LessonContentProps> = ({
     const newUserAnswers: UserAnswer[] = [];
     let allCorrect = true;
 
-    currentExchange.blanks.forEach(blank => {
+    currentExchange.blanks.forEach((blank: any) => {
       const userAnswer = inputs[blank.index] || '';
       
       // First check for normalized match (ignoring accents and punctuation)
@@ -241,7 +241,7 @@ const LessonContent: React.FC<LessonContentProps> = ({
     // Reset current exchange but keep the same blanks
     const initialInputs: Record<number, string> = {};
     if (currentExchange?.blanks) {
-        currentExchange.blanks.forEach(blank => {
+        currentExchange.blanks.forEach((blank: any) => {
         initialInputs[blank.index] = '';
         });
         setInputs(initialInputs);    
@@ -285,8 +285,8 @@ const LessonContent: React.FC<LessonContentProps> = ({
   // Helper function to encapsulate the focus logic
   const focusNextBlank = (currentIndex: number) => {
     const blankIndices = currentExchange?.blanks
-      ?.map(blank => blank.index)
-      .sort((a, b) => a - b) || [];
+      ?.map((blank: any) => blank.index)
+      .sort((a: any, b: any) => a - b) || [];
 
     const currentBlankIndexInSortedArray = blankIndices.indexOf(currentIndex);
 
@@ -325,7 +325,7 @@ const LessonContent: React.FC<LessonContentProps> = ({
   }, [focusNextBlank]); // Dependency: focusNextBlank
 
   const renderWordOrBlank = (word: string, wordIndex: number) => {
-    const blankData = currentExchange?.blanks?.find(blank => blank.index === wordIndex);
+    const blankData = currentExchange?.blanks?.find((blank: any) => blank.index === wordIndex);
 
     if (blankData) { // If blankData exists, this word position should be a blank
         const userAnswer = userAnswers.find(
@@ -427,7 +427,7 @@ const LessonContent: React.FC<LessonContentProps> = ({
                     <p className="text-gray-900">
                         {exchangeIdx === currentExchangeIndex ? (
                         // Current exchange - interactive with blanks
-                        currentExchange.translatedText.split(' ').map((word, wordIdx) => (
+                        currentExchange.translatedText.split(' ').map((word: any, wordIdx: any) => (
                         <React.Fragment key={`word-fragment-${wordIdx}`}>
                         {renderWordOrBlank(word, wordIdx)}
                         {wordIdx < currentExchange.translatedText.split(' ').length - 1 && " "}
@@ -526,7 +526,7 @@ const LessonContent: React.FC<LessonContentProps> = ({
                   <ul className="mt-1 text-red-700 ml-4 list-disc">
                     {userAnswers.filter(ans => !ans.isCorrect).map((answer, idx) => {
                       const correctAnswer = currentExchange.blanks?.find(
-                        blank => blank.index === answer.blankIndex
+                        (blank: any) => blank.index === answer.blankIndex
                       )?.correctAnswer;
                       
                       return (

@@ -1,17 +1,23 @@
 {
   "compilerOptions": {
-    "module": "NodeNext",
-    "esModuleInterop": true,
-    "moduleResolution": "nodenext",
-    "noImplicitReturns": true,
-    "noUnusedLocals": true,
+    "module": "commonjs",
+    "target": "es2021",
     "outDir": "lib",
-    "sourceMap": true,
+    "rootDir": "./src",
     "strict": true,
-    "target": "es2017"
+    "skipLibCheck": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": false,
+    "sourceMap": true,
+    "paths": {
+      "*": ["./*"]
+    }
   },
-  "compileOnSave": true,
   "include": [
-    "src"
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "lib"
   ]
 }
