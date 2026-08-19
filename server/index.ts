@@ -12,6 +12,7 @@ const app = express();
 
 // TEMPORARY: VERY EARLY HEADER LOGGING
 app.use((req, res, next) => {
+  console.log("=== BACKEND DEPLOYMENT VERSION: 2026.08.19d ===");
   console.log('--- RAW HEADERS ON ENTRY ---');
   console.log(JSON.stringify(req.headers, null, 2));
   console.log('--- END RAW HEADERS ---');

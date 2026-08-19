@@ -103,17 +103,23 @@ export class FirestoreStorage {
     }
 
     const functionUrl = `https://${region}-${projectId}.cloudfunctions.net/${functionName}`;
-    const targetAudience = functionUrl;
+    const targetAudience = functionUrl.replace(/\/+$/, "");;
+    console.log(`[AUTH DEBUG] Attempting ID token fetch. Audience: "${targetAudience}"`);
+    console.log(`[AUTH DEBUG] Environment -> GCLOUD_PROJECT: "${process.env.GCLOUD_PROJECT}", FUNCTION_REGION: "${process.env.FUNCTION_REGION}"`);
+
     let idToken: string | null = null;
 
     try {
       const client = await this.auth.getIdTokenClient(targetAudience);
       const headers = await client.getRequestHeaders();
-      idToken = headers['Authorization']?.split('Bearer ')[1];
+      // old: idToken = headers['Authorization']?.split('Bearer ')[1];
+      // Use idTokenProvider to fetch the actual JWT string directly
+      idToken = await client.idTokenProvider.fetchIdToken(targetAudience);
+
       if (!idToken) throw new Error('Failed to obtain ID token.');
     } catch (error: any) {
-      console.error("DEBUG: Error obtaining ID token:", error.message);
-      throw new Error(`Failed to obtain ID token: ${error.message}`);
+      console.error("DEBUG: Error obtaining ID token for CreateLesson Function:", error.message);
+      throw new Error(`Failed to obtain ID token for CreateLesson Function: ${error.message}`);
     }
 
     try {
@@ -460,17 +466,31 @@ export class FirestoreStorage {
       throw new Error("Project ID or Function Region is not configured for Cloud Functions (for AI).");
     }
 
-    const functionUrl = `https://${region}-${projectId}.cloudfunctions.net/${functionName}`;
-    const targetAudience = functionUrl;
+  const functionUrl = `https://${region}-${projectId}.cloudfunctions.net/${functionName}`;
+  const targetAudience = functionUrl.replace(/\/+$/, "");
+
+    console.log(`[AUTH DEBUG] Attempting ID token fetch. Audience: "${targetAudience}"`);
+    console.log(`[AUTH DEBUG] Environment -> GCLOUD_PROJECT: "${process.env.GCLOUD_PROJECT}", FUNCTION_REGION: "${process.env.FUNCTION_REGION}"`);
+
     let idToken: string | null = null;
 
     try {
       const client = await this.auth.getIdTokenClient(targetAudience);
+      // Log the type of client returned by GoogleAuth
+  console.log(`[AUTH DEBUG] Client retrieved successfully. Constructor: ${client.constructor.name}`);
+  
       const headers = await client.getRequestHeaders();
-      idToken = headers['Authorization']?.split('Bearer ')[1];
-      if (!idToken) throw new Error('Failed to obtain ID token for AI Cloud Function.');
+
+      // old: idToken = headers['Authorization']?.split('Bearer ')[1];
+      idToken = await client.idTokenProvider.fetchIdToken(targetAudience);
+      
+      console.log(`[AUTH DEBUG] ID Token successfully acquired. Length: ${idToken?.length}`);
+
+      if (!idToken) throw new Error('Failed to obtain ID token for AI Cloud Function but no error.');
     } catch (error: any) {
-      console.error("DEBUG: Error obtaining ID token for AI Cloud Function:", error.message);
+    console.error("[AUTH DEBUG] Full Error Object:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
+    console.error(`[AUTH DEBUG] Error Stack:`, error.stack);      
+    console.error("DEBUG: Error obtaining ID token for AI Cloud Function:", error.message);
       throw new Error(`Failed to obtain ID token for AI Cloud Function: ${error.message}`);
     }
 
@@ -690,17 +710,25 @@ export class FirestoreStorage {
       throw new Error("Project ID or Function Region is not configured for Chat Cloud Function (for AI).");
     }
 
+    // const functionUrl = process.env.CHAT_FUNCTION_URL || 
     const functionUrl = `https://${region}-${projectId}.cloudfunctions.net/${functionName}`;
-    const targetAudience = functionUrl;
-    let idToken: string | null = null;
+    const targetAudience = functionUrl.replace(/\/+$/, "");
+
+    console.log(`[AUTH DEBUG] Attempting ID token fetch. Audience: "${targetAudience}"`);
+    console.log(`[AUTH DEBUG] Environment -> GCLOUD_PROJECT: "${process.env.GCLOUD_PROJECT}", FUNCTION_REGION: "${process.env.FUNCTION_REGION}"`);
+
+    let idToken: string | null = null; // Declare variable here
 
     try {
       // Assuming this.auth is your Firebase Admin Auth instance or similar
       // It's crucial for secure Cloud Function calls
       const client = await this.auth.getIdTokenClient(targetAudience);
       const headers = await client.getRequestHeaders();
-      idToken = headers["Authorization"]?.split("Bearer ")[1] || null; // Use null for clarity
-      if (!idToken) throw new Error("Failed to obtain ID token for Chat Cloud Function.");
+      // Use idTokenProvider to fetch the actual JWT string directly
+      idToken = await client.idTokenProvider.fetchIdToken(targetAudience);
+
+      // idToken = headers["Authorization"]?.split("Bearer ")[1] || null; // Use null for clarity
+      if (!idToken) throw new Error('Failed to obtain ID token for AI Cloud Function but no error.');
     } catch (error: any) {
       console.error("DEBUG: Error obtaining ID token for Chat Cloud Function:", error.message);
       throw new Error(`Failed to obtain ID token for Chat Cloud Function: ${error.message}`);
